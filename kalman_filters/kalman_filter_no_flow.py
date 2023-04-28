@@ -53,7 +53,37 @@ class Kalman_Filter:
         self.g = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -9.81]).reshape(12, 1)
 
         # we calculate the discretized time of our model equation
-        self.dt = 1.0/INITIAL_PARAMS.KF_FREQUENCY
+        self.dt = 0.01
+
+    def get_odom(self, p_cur, dp_cur, contact_cur, imu):
+        sum_contacts = sum(contact_cur)
+        base_vel_x, base_vel_y, base_vel_z = 0.0, 0.0, 0.0
+        base_pos_z = 0.0
+        for i in range(4):
+            if contact_cur[i] == 1:
+                base_vel_x = base_vel_x + dp_cur[3 * i]*2.0
+                base_vel_y = base_vel_y + dp_cur[3 * i + 1]*2.0
+                base_vel_z = base_vel_z + dp_cur[3 * i + 2]*2.0
+                base_pos_z = base_pos_z + p_cur[3 * i + 2]
+
+        if not sum_contacts == 0:
+            base_vel_x = -1 * base_vel_x / sum_contacts
+            base_vel_y = -1 * base_vel_y / sum_contacts
+            base_vel_z = -1 * base_vel_z / sum_contacts
+            base_pos_z = -1 * base_pos_z / sum_contacts
+            base_velocity = np.array([base_vel_x, base_vel_y, base_vel_z]).reshape(3, 1)
+        else:
+            base_velocity = np.array([0.0, 0.0, 0.0]).reshape(3, 1)
+
+        # transform into world frame
+        R_base_to_world = self.rotation_matrix_body_world(imu[0], imu[1], imu[2])
+        base_velocity[:, 0] = np.matmul(R_base_to_world, base_velocity).reshape(3, )
+
+        odom = np.array([base_pos_z, base_velocity[0], base_velocity[1], base_velocity[2]]).reshape(4,1)
+        #odom = np.array([base_pos_z, imu2[0], imu2[1], base_velocity[2]]).reshape(4, 1)
+
+        return odom
+
 
     def set_measurements(self, imu, odom, lidar):
         # thx ^ imu, thy ^ imu, thz ^ imu, z ^ odom, z ^ lidar, dthx ^ imu, dthy ^ imu, dthz ^ imu,
@@ -111,7 +141,7 @@ class Kalman_Filter:
         self.x = self.x + np.matmul(K, y_bar)
         self.P = np.matmul(self.identity_large - np.matmul(K, self.H), self.P)
 
-    def estimate_state(self, imu, odom, lidar, p, f):
+    def estimate_state(self, imu, lidar, p, dp, contact, f):
         # this function will estimate the state of the robot using the Kalman filter
         # inputs are the current measurements:
         # imu is a 6x1 array: thx, thy, thz, dthx, dthy, dthz
@@ -121,7 +151,8 @@ class Kalman_Filter:
         # p: 12x1 array (x,y,z) position per leg
         # f: 12x1 array(x,y,z) ground reaction force per leg
         # output: update state x
-        self.set_measurements(imu, odom, lidar)
+        odom = self.get_odom(p,dp,contact,imu) # TODO: include lidar once we have lidar data
+        self.set_measurements(imu, odom, odom[0])
         self.predict(p,f)
         self.update()
 
@@ -139,9 +170,9 @@ class Kalman_Filter:
         return R
 
     def skew(self, x):
-        return np.array([[0, -x[2], x[1]],
-                         [x[2], 0, -x[0]],
-                         [-x[1], x[0], 0]])
+        return np.array([[0, -x[2][0], x[1][0]],
+                         [x[2][0], 0, -x[0][0]],
+                         [-x[1][0], x[0][0], 0]])
 
 
 

@@ -1,0 +1,13 @@
+5 ft thre 7
+6 ft thre 10
+7 ft thre 12
+8 ft thre 14
+9 ft thre 25
+10 ft thre 19 with filtered force
+11 ft thre 14 use force_curr[0:3] #IMU noisy, z always -10, FT noisy, IMU Motor wire connection
+
+14 camera
+
+16,17,18,23 lse
+
+19 20 21 22 cam
