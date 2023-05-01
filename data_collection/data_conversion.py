@@ -256,7 +256,6 @@ def quaternion_2_euler(quaternion):
 
     return euler
 
-
 vicon_theta = []
 vicon_pos = []
 vicon_dtheta = []
@@ -397,7 +396,6 @@ dthz_imu = []
 
 dx_imu = []
 dy_imu = []
-
 
 rx_vicon = []
 ry_vicon = []
@@ -562,11 +560,11 @@ dthy_vicon = dthy_vicon[indx_cutoff1:]
 dthz_vicon = dthz_vicon[indx_cutoff1:]
 
 plt.figure(2)
-plt.plot(time_history[:indx_cutoff2], dthz_vicon[:indx_cutoff2])
+plt.plot(time_history[:indx_cutoff2], thy_vicon[:indx_cutoff2])
 #plt.plot(time_history[:indx_cutoff2], thx_vicon[:indx_cutoff2])
 #plt.plot(time_history[:indx_cutoff2], dthz_vicon[:indx_cutoff2])
 
-plt.plot(time_history[:indx_cutoff2], dthz_imu[:indx_cutoff2])
+plt.plot(time_history[:indx_cutoff2], thy_imu[:indx_cutoff2])
 #plt.plot(time_history[:indx_cutoff2], thx_imu[:indx_cutoff2])
 #plt.plot(time_history[:indx_cutoff2], dthz_imu[:indx_cutoff2])
 
@@ -574,7 +572,7 @@ plt.title("Vicon vs IMU")
 plt.xlabel("Time (seconds)")
 plt.ylabel("Angle (degrees)")
 
-plt.legend(['X Vicon', 'Y Vicon', 'Z Vicon', 'X IMU', 'Y IMU', 'Z IMU'])
+plt.legend(['Y Vicon','Y IMU'])
 
 
 

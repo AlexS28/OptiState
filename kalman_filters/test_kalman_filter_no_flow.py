@@ -1,8 +1,12 @@
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
+from settings import INITIAL_PARAMS
 
 from kalman_filter_no_flow import Kalman_Filter
+moving_average_dx = [0.0]*7
+moving_average_dy = [0.0]*4
+covariance_horizon =2
 
 with open('data_collection/saved_data.pkl', 'rb') as f:
     data_collection = pickle.load(f)
@@ -82,13 +86,63 @@ dthx_est = []
 dthy_est = []
 dthz_est = []
 
-moving_average_dx = [0.0]*7
-moving_average_dy = [0.0]*4
-
 KF = Kalman_Filter()
 
 state_KF = []
 state_VICON = []
+
+Q00 = []
+Q11 = []
+Q22 = []
+Q33 = []
+Q44 = []
+Q55 = []
+Q66 = []
+Q77 = []
+Q88 = []
+Q99 = []
+Q1010 = []
+Q1111 = []
+
+
+Q00.append(INITIAL_PARAMS.Q[0,0])
+Q11.append(INITIAL_PARAMS.Q[1,1])
+Q22.append(INITIAL_PARAMS.Q[2,2])
+Q33.append(INITIAL_PARAMS.Q[3,3])
+Q44.append(INITIAL_PARAMS.Q[4,4])
+Q55.append(INITIAL_PARAMS.Q[5,5])
+Q66.append(INITIAL_PARAMS.Q[6,6])
+Q77.append(INITIAL_PARAMS.Q[7,7])
+Q88.append(INITIAL_PARAMS.Q[8,8])
+Q99.append(INITIAL_PARAMS.Q[9,9])
+Q1010.append(INITIAL_PARAMS.Q[10,10])
+Q1111.append(INITIAL_PARAMS.Q[11,11])
+
+#thx^imu, thy^imu, thz^imu, z^odom, z^lidar, dthx^imu, dthy^imu, dthz^imu,
+        # vx^odom, vy^odom, vz^odom
+
+R00 = []
+R11 = []
+R22 = []
+R33 = []
+R44 = []
+R55 = []
+R66 = []
+R77 = []
+R88 = []
+R99 = []
+R1010 = []
+R00.append(INITIAL_PARAMS.R_NO_FLOW[0,0])
+R11.append(INITIAL_PARAMS.R_NO_FLOW[1,1])
+R22.append(INITIAL_PARAMS.R_NO_FLOW[2,2])
+R33.append(INITIAL_PARAMS.R_NO_FLOW[3,3])
+R44.append(INITIAL_PARAMS.R_NO_FLOW[4,4])
+R55.append(INITIAL_PARAMS.R_NO_FLOW[5,5])
+R66.append(INITIAL_PARAMS.R_NO_FLOW[6,6])
+R77.append(INITIAL_PARAMS.R_NO_FLOW[7,7])
+R88.append(INITIAL_PARAMS.R_NO_FLOW[8,8])
+R99.append(INITIAL_PARAMS.R_NO_FLOW[9,9])
+R1010.append(INITIAL_PARAMS.R_NO_FLOW[10,10])
 
 for i in range(len(time)):
     # we first build our arrays for p (12x1), dp (12x1), f (12x1), imu (6x1), contact (4x1)
@@ -125,6 +179,110 @@ for i in range(len(time)):
     drx_est.append(x[9])
     dry_est.append(x[10])
     drz_est.append(x[11])
+
+    # calculate the variances
+    Q00.append((KF.x_model[0][0] - thx_vicon[i])**2)
+    Q11.append((KF.x_model[1][0] - thy_vicon[i])**2)
+    Q22.append((KF.x_model[2][0] - thz_vicon[i])**2)
+    Q33.append((KF.x_model[3][0] - rx_vicon[i])**2)
+    Q44.append((KF.x_model[4][0] - ry_vicon[i])**2)
+    Q55.append((KF.x_model[5][0] - rz_vicon[i])**2)
+    Q66.append((KF.x_model[6][0] - dthx_vicon[i])**2)
+    Q77.append((KF.x_model[7][0] - dthy_vicon[i])**2)
+    Q88.append((KF.x_model[8][0] - dthz_vicon[i])**2)
+    Q99.append((KF.x_model[9][0] - drx_vicon[i])**2)
+    Q1010.append((KF.x_model[10][0] - dry_vicon[i])**2)
+    Q1111.append((KF.x_model[11][0] - drz_vicon[i])**2)
+
+
+    # thx^imu, thy^imu, thz^imu, z^odom, z^lidar, dthx^imu, dthy^imu, dthz^imu,
+    # vx^odom, vy^odom, vz^odom
+
+
+    R00.append((KF.z[0][0] - thx_vicon[i])**2)
+    R11.append((KF.z[1][0] - thy_vicon[i])**2)
+    R22.append((KF.z[2][0] - thz_vicon[i])**2)
+    R33.append((KF.z[3][0] - rz_vicon[i])**2)
+    R44.append((KF.z[4][0] - rz_vicon[i])**2)
+    R55.append((KF.z[5][0] - dthx_vicon[i])**2)
+    R66.append((KF.z[6][0] - dthy_vicon[i])**2)
+    R77.append((KF.z[7][0] - dthz_vicon[i])**2)
+    R88.append((KF.z[8][0] - drx_vicon[i])**2)
+    R99.append((KF.z[9][0] - dry_vicon[i])**2)
+    R1010.append((KF.z[10][0] - drz_vicon[i])**2)
+
+    if len(Q00) >= covariance_horizon:
+        KF.Q[0, 0] = sum(Q00) / (covariance_horizon - 1)
+        KF.Q[1, 1] = sum(Q11) / (covariance_horizon - 1)
+        KF.Q[2, 2] = sum(Q22) / (covariance_horizon - 1)
+        KF.Q[3, 3] = sum(Q33) / (covariance_horizon - 1)
+        KF.Q[4, 4] = sum(Q44) / (covariance_horizon - 1)
+        KF.Q[5, 5] = sum(Q55) / (covariance_horizon - 1)
+        KF.Q[6, 6] = sum(Q66) / (covariance_horizon - 1)
+        KF.Q[7, 7] = sum(Q77) / (covariance_horizon - 1)
+        KF.Q[8, 8] = sum(Q88) / (covariance_horizon - 1)
+        KF.Q[9, 9] = sum(Q99) / (covariance_horizon - 1)
+        KF.Q[10, 10] = sum(Q1010) / (covariance_horizon - 1)
+        KF.Q[11, 11] = sum(Q1111) / (covariance_horizon - 1)
+        Q00 = []
+        Q11 = []
+        Q22 = []
+        Q33 = []
+        Q44 = []
+        Q55 = []
+        Q66 = []
+        Q77 = []
+        Q88 = []
+        Q99 = []
+        Q1010 = []
+        Q1111 = []
+        Q00.append(KF.Q[0, 0])
+        Q11.append(KF.Q[1, 1])
+        Q22.append(KF.Q[2, 2])
+        Q33.append(KF.Q[3, 3])
+        Q44.append(KF.Q[4, 4])
+        Q55.append(KF.Q[5, 5])
+        Q66.append(KF.Q[6, 6])
+        Q77.append(KF.Q[7, 7])
+        Q88.append(KF.Q[8, 8])
+        Q99.append(KF.Q[9, 9])
+        Q1010.append(KF.Q[10, 10])
+        Q1111.append(KF.Q[11, 11])
+
+
+        KF.R[0, 0] = sum(R00) / (covariance_horizon - 1)
+        KF.R[1, 1] = sum(R11) / (covariance_horizon - 1)
+        KF.R[2, 2] = sum(R22) / (covariance_horizon - 1)
+        KF.R[3, 3] = sum(R33) / (covariance_horizon - 1)
+        KF.R[4, 4] = sum(R44) / (covariance_horizon - 1)
+        KF.R[5, 5] = sum(R55) / (covariance_horizon - 1)
+        KF.R[6, 6] = sum(R66) / (covariance_horizon - 1)
+        KF.R[7, 7] = sum(R77) / (covariance_horizon - 1)
+        KF.R[8, 8] = sum(R88) / (covariance_horizon - 1)
+        KF.R[9, 9] = sum(R99) / (covariance_horizon - 1)
+        KF.R[10, 10] = sum(R1010) / (covariance_horizon - 1)
+        R00 = []
+        R11 = []
+        R22 = []
+        R33 = []
+        R44 = []
+        R55 = []
+        R66 = []
+        R77 = []
+        R88 = []
+        R99 = []
+        R1010 = []
+        R00.append(KF.R[0, 0])
+        R11.append(KF.R[1, 1])
+        R22.append(KF.R[2, 2])
+        R33.append(KF.R[3, 3])
+        R44.append(KF.R[4, 4])
+        R55.append(KF.R[5, 5])
+        R66.append(KF.R[6, 6])
+        R77.append(KF.R[7, 7])
+        R88.append(KF.R[8, 8])
+        R99.append(KF.R[9, 9])
+        R1010.append(KF.R[10, 10])
 
     state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0]])
     state_VICON.append([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]])

@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 from settings import INITIAL_PARAMS
 
@@ -54,6 +56,10 @@ class Kalman_Filter:
 
         # we calculate the discretized time of our model equation
         self.dt = 0.01
+
+        # model state
+        self.x_model = INITIAL_PARAMS.STARTING_STATE
+
 
     def get_odom(self, p_cur, dp_cur, contact_cur, imu):
         sum_contacts = sum(contact_cur)
@@ -132,6 +138,8 @@ class Kalman_Filter:
         # we now calculate the prediction step using our model-based equation
         self.x = np.matmul(self.F_d, self.x) + np.matmul(self.B_d, f) + self.dt * self.g
         self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
+
+        self.x_model = copy.deepcopy(self.x)
 
     def update(self):
         # this is the update step for our Kalman filter. Before running this function, run the prediction function first
