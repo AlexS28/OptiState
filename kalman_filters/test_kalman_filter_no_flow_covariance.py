@@ -2,13 +2,17 @@ import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 from settings import INITIAL_PARAMS
+import os
 
 from kalman_filter_no_flow import Kalman_Filter
 moving_average_dx = [0.0]*7
 moving_average_dy = [0.0]*4
-covariance_horizon =2
+moving_average_dz = [0.0]*4
+covariance_horizon = 2
 
-with open('data_collection/saved_data.pkl', 'rb') as f:
+dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+with open(dir_path + '/OptiState/data_collection/saved_data.pkl', 'rb') as f:
     data_collection = pickle.load(f)
 
 thx_vicon = data_collection['thx_vicon']
@@ -144,6 +148,8 @@ R88.append(INITIAL_PARAMS.R_NO_FLOW[8,8])
 R99.append(INITIAL_PARAMS.R_NO_FLOW[9,9])
 R1010.append(INITIAL_PARAMS.R_NO_FLOW[10,10])
 
+COV = []
+
 for i in range(len(time)):
     # we first build our arrays for p (12x1), dp (12x1), f (12x1), imu (6x1), contact (4x1)
     p = np.array([p1x[i],p1y[i],p1z[i],p2x[i],p2y[i],p2z[i],p3x[i],p3y[i],p3z[i],p4x[i],p4y[i],p4z[i]]).reshape(12,1)
@@ -157,15 +163,19 @@ for i in range(len(time)):
 
     moving_average_dx.append(x[9])
     moving_average_dy.append(x[10])
+    moving_average_dz.append(x[11])
 
     del moving_average_dx[0]
     del moving_average_dy[0]
+    del moving_average_dz[0]
 
     x[9] = sum(moving_average_dx)/len(moving_average_dx)
     x[10] = sum(moving_average_dy)/len(moving_average_dy)
+    x[11] = sum(moving_average_dz)/len(moving_average_dz)
 
     KF.x[9] = x[9]
     KF.x[10] = x[10]
+    KF.x[11] = x[11]
 
     thx_est.append(x[0])
     thy_est.append(x[1])
@@ -236,20 +246,6 @@ for i in range(len(time)):
         Q99 = []
         Q1010 = []
         Q1111 = []
-        Q00.append(KF.Q[0, 0])
-        Q11.append(KF.Q[1, 1])
-        Q22.append(KF.Q[2, 2])
-        Q33.append(KF.Q[3, 3])
-        Q44.append(KF.Q[4, 4])
-        Q55.append(KF.Q[5, 5])
-        Q66.append(KF.Q[6, 6])
-        Q77.append(KF.Q[7, 7])
-        Q88.append(KF.Q[8, 8])
-        Q99.append(KF.Q[9, 9])
-        Q1010.append(KF.Q[10, 10])
-        Q1111.append(KF.Q[11, 11])
-
-
         KF.R[0, 0] = sum(R00) / (covariance_horizon - 1)
         KF.R[1, 1] = sum(R11) / (covariance_horizon - 1)
         KF.R[2, 2] = sum(R22) / (covariance_horizon - 1)
@@ -272,21 +268,12 @@ for i in range(len(time)):
         R88 = []
         R99 = []
         R1010 = []
-        R00.append(KF.R[0, 0])
-        R11.append(KF.R[1, 1])
-        R22.append(KF.R[2, 2])
-        R33.append(KF.R[3, 3])
-        R44.append(KF.R[4, 4])
-        R55.append(KF.R[5, 5])
-        R66.append(KF.R[6, 6])
-        R77.append(KF.R[7, 7])
-        R88.append(KF.R[8, 8])
-        R99.append(KF.R[9, 9])
-        R1010.append(KF.R[10, 10])
 
     state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0]])
     state_VICON.append([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]])
 
+    COV.append([KF.Q[0,0], KF.Q[1,1], KF.Q[2,2], KF.Q[3,3], KF.Q[4,4], KF.Q[5,5], KF.Q[6,6], KF.Q[7,7], KF.Q[8,8], KF.Q[9,9], KF.Q[10,10], KF.Q[11,11],
+                KF.R[0,0], KF.R[1,1], KF.R[2,2], KF.R[3,3], KF.R[4,4], KF.R[5,5], KF.R[6,6], KF.R[7,7], KF.R[8,8], KF.R[9,9], KF.R[10,10]])
 
 plt.figure(1)
 plt.plot(time,dthx_est)
@@ -320,10 +307,10 @@ plt.legend(['est x','vicon x', 'est y','vicon y', 'est z','vicon z'])
 plt.title('position')
 
 plt.figure(5)
-plt.plot(time,drx_est)
-plt.plot(time,drx_vicon)
-plt.plot(time,dry_est)
-plt.plot(time,dry_vicon)
+#plt.plot(time,drx_est)
+#plt.plot(time,drx_vicon)
+#plt.plot(time,dry_est)
+#plt.plot(time,dry_vicon)
 plt.plot(time,drz_est)
 plt.plot(time,drz_vicon)
 plt.legend(['est dx','vicon dx', 'est dy','vicon dy', 'est dz','vicon dz'])
@@ -334,9 +321,9 @@ plt.show()
 # save the Kalman filter estimates to the
 # save data in pickle file
 data_collection = {}
-data_collection.update({'state_KF': state_KF, 'state_VICON': state_VICON})
+data_collection.update({'state_KF': state_KF, 'state_VICON': state_VICON, 'COV': COV})
 
-with open('../data_collection/rnn_data.pkl', 'wb') as f:
+with open(dir_path+'/OptiState/data_collection/rnn_data.pkl', 'wb') as f:
     pickle.dump(data_collection, f)
 
 

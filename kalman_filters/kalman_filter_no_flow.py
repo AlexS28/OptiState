@@ -69,8 +69,9 @@ class Kalman_Filter:
             if contact_cur[i] == 1:
                 base_vel_x = base_vel_x + dp_cur[3 * i]*2.0
                 base_vel_y = base_vel_y + dp_cur[3 * i + 1]*2.0
-                base_vel_z = base_vel_z + dp_cur[3 * i + 2]*2.0
                 base_pos_z = base_pos_z + p_cur[3 * i + 2]
+            if contact_cur[i] == 0:
+                base_vel_z = base_vel_z + dp_cur[3 * i + 2]*2.0
 
         if not sum_contacts == 0:
             base_vel_x = -1 * base_vel_x / sum_contacts

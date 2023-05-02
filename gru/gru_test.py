@@ -4,6 +4,7 @@ from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 from gru_model import RNN
+import os
 
 # Hyper-parameters
 num_outputs = 12
@@ -12,43 +13,58 @@ sequence_length = 20
 hidden_size = 128
 num_layers = 2
 
+# Hyper-parameters
+num_outputs2 = 23
+input_size2 = 12
+sequence_length2 = 20
+hidden_size2 = 128
+num_layers2 = 2
+
+dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-with open('/home/alexander/PycharmProjects/OptiState/data_collection/rnn_data.pkl', 'rb') as f:
+with open(dir_path+'/OptiState/data_collection/rnn_data.pkl', 'rb') as f:
     data_collection = pickle.load(f)
 
 # get data from dictionary
 state_KF_init = data_collection['state_KF']
 state_VICON_init = data_collection['state_VICON']
+state_COV_init = data_collection['COV']
 
-# reshape data to have sequences of length sequence_length
-#state_KF = [state_KF_init[i:i+sequence_length] for i in range(len(state_KF_init)-sequence_length+1)]
-#state_VICON = [state_VICON[i+sequence_length-1] for i in range(len(state_KF))]
+
 state_KF = []
 for i in range(len(state_KF_init) - sequence_length + 1):
     state_KF.append(state_KF_init[i:i + sequence_length])
 
 state_VICON = []
+state_COV = []
 for i in range(len(state_KF)):
     state_VICON.append(state_VICON_init[i + sequence_length - 1])
+    state_COV.append(state_COV_init[i + sequence_length - 1])
 
 # convert to tensor format
 state_KF_tensor = torch.tensor(state_KF, dtype=torch.float32)
 state_VICON_tensor = torch.tensor(state_VICON, dtype=torch.float32)
+state_COV_tensor = torch.tensor(state_COV, dtype=torch.float32)
 
 # Create TensorDataset object
 dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
+dataset2 = TensorDataset(state_KF_tensor, state_COV_tensor)
 
 model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
+model2 = RNN(input_size2, hidden_size2, num_layers2, num_outputs2, device, True).to(device)
 
 # load your saved model
-model.load_state_dict(torch.load('model.pth'))
+model.load_state_dict(torch.load(dir_path + '/OptiState/gru/model.pth'))
+model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/model_cov.pth'))
 
 # Put model in eval mode
 model.eval()
+model2.eval()
 
 # Create DataLoader object for entire dataset
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
+data_loader2 = DataLoader(dataset=dataset2, batch_size=1, shuffle=False)
 
 # Create lists to store predicted and ground truth values
 preds = []
@@ -58,12 +74,11 @@ with torch.no_grad():
         # Move inputs and labels to device
         inputs = inputs.to(device)
         labels = labels.to(device)
-
         # Forward pass
         outputs = model(inputs)
-
         # Append predicted and ground truth values to respective lists
-        preds.append(outputs.cpu().numpy())
+        preds_total = outputs.cpu().numpy()
+        preds.append(preds_total)
         ground_truth.append(labels.cpu().numpy())
 
 # Convert predicted and ground truth lists to numpy arrays
@@ -159,5 +174,60 @@ plt.plot(ground_truth[:, 11], label="Vicon")
 plt.plot(input_KF[:, 11], label="Kalman Filter")
 plt.title('dz')
 plt.legend(['dz GRU','dz Vicon','dz Kalman Filter'])
+
+
+
+# Create lists to store predicted and ground truth values
+preds = []
+ground_truth = []
+with torch.no_grad():
+    for inputs, labels in data_loader2:
+        # Move inputs and labels to device
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+        # Forward pass
+        outputs = model2(inputs)
+        # Append predicted and ground truth values to respective lists
+        preds_total = outputs.cpu().numpy()
+        preds.append(preds_total)
+        ground_truth.append(labels.cpu().numpy())
+
+# Convert predicted and ground truth lists to numpy arrays
+preds = np.array(preds)
+ground_truth = np.array(ground_truth)
+
+# Reshape predicted and ground truth arrays to have the same shape
+preds = preds.reshape(-1, num_outputs2)
+ground_truth = ground_truth.reshape(-1, num_outputs2)
+
+plt.figure(13)
+plt.plot(preds[:, 0])
+plt.plot(ground_truth[:, 0])
+plt.title('Q00')
+
+plt.figure(14)
+plt.plot(preds[:, 1])
+plt.plot(ground_truth[:, 1])
+plt.title('Q11')
+
+plt.figure(15)
+plt.plot(preds[:, 2])
+plt.plot(ground_truth[:, 2])
+plt.title('Q22')
+
+plt.figure(16)
+plt.plot(preds[:, 3])
+plt.plot(ground_truth[:, 3])
+plt.title('Q33')
+
+plt.figure(17)
+plt.plot(preds[:, 12])
+plt.plot(ground_truth[:, 12])
+plt.title('R00')
+
+plt.figure(18)
+plt.plot(preds[:, 13])
+plt.plot(ground_truth[:, 13])
+plt.title('R11')
 
 plt.show()
