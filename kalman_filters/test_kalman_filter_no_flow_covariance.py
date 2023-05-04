@@ -34,9 +34,14 @@ dthx_imu = data_collection['dthx_imu']
 dthy_imu = data_collection['dthy_imu']
 dthz_imu = data_collection['dthz_imu']
 x_imu = data_collection['x_imu']
-y_imu = data_collection['x_imu']
+y_imu = data_collection['y_imu']
+z_imu = data_collection['z_imu']
 dx_imu = data_collection['dx_imu']
 dy_imu = data_collection['dy_imu']
+dz_imu = data_collection['dz_imu']
+acc_x_imu = data_collection['acc_x_imu']
+acc_y_imu = data_collection['acc_y_imu']
+acc_z_imu = data_collection['acc_z_imu']
 
 p1x = data_collection['p1x']
 p1y = data_collection['p1y']
@@ -269,7 +274,7 @@ for i in range(len(time)):
         R99 = []
         R1010 = []
 
-    state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0]])
+    state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0], acc_z_imu[i]])
     state_VICON.append([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]])
 
     COV.append([KF.Q[0,0], KF.Q[1,1], KF.Q[2,2], KF.Q[3,3], KF.Q[4,4], KF.Q[5,5], KF.Q[6,6], KF.Q[7,7], KF.Q[8,8], KF.Q[9,9], KF.Q[10,10], KF.Q[11,11],

@@ -96,6 +96,7 @@ theta_CoM_IMU = []
 dtheta_CoM_IMU = []
 pos_CoM_IMU = []
 dpos_CoM_IMU = []
+acc_CoM_IMU = []
 theta_CoM_IMU_cur_x = 0.0
 theta_CoM_IMU_cur_y = 0.0
 theta_CoM_IMU_cur_z = 0.0
@@ -103,8 +104,9 @@ time_history = []
 time_history.append(0.0)
 theta_CoM_IMU.append([0.0,0.0,0.0])
 dtheta_CoM_IMU.append([0.0,0.0,0.0])
-pos_CoM_IMU.append([0.0,0.0])
-dpos_CoM_IMU.append([0.0,0.0])
+pos_CoM_IMU.append([0.0,0.0,0.0])
+dpos_CoM_IMU.append([0.0,0.0,0.0])
+acc_CoM_IMU.append([0.0,0.0,0.0])
 
 wrench0 = wrench[0,:]
 theta_CoM_IMU_0 = theta_CoM_IMU[0]
@@ -123,8 +125,10 @@ contact_list.append([1,1,1,1])
 
 x_pos_IMU = 0.0
 y_pos_IMU = 0.0
+z_pos_IMU = 0.0
 dx_pos_IMU = 0.0
 dy_pos_IMU = 0.0
+dz_pos_IMU = 0.0
 
 # get footstep positions and velocities from encoder
 for k in range(4):
@@ -165,12 +169,15 @@ for i in range(1,len(encoder_val)-1):
 
     x_pos_IMU = x_pos_IMU + dx_pos_IMU + 0.5*imu_acc[i,0]*dt**2
     y_pos_IMU = y_pos_IMU + dy_pos_IMU + 0.5*imu_acc[i,1]*dt**2
+    z_pos_IMU = z_pos_IMU + dz_pos_IMU + 0.5*(-imu_acc[i,2]-9.81)*dt**2
     dx_pos_IMU = dx_pos_IMU + 0.5*imu_acc[i,0]*dt
     dy_pos_IMU = dy_pos_IMU + 0.5*imu_acc[i,1]*dt
+    dz_pos_IMU = dz_pos_IMU + 0.5*(-imu_acc[i,2]-9.81)*dt
 
     # velocity IMU
-    pos_CoM_IMU.append([x_pos_IMU,y_pos_IMU])
-    dpos_CoM_IMU.append([dx_pos_IMU,dy_pos_IMU])
+    pos_CoM_IMU.append([x_pos_IMU,y_pos_IMU,z_pos_IMU])
+    dpos_CoM_IMU.append([dx_pos_IMU,dy_pos_IMU,dz_pos_IMU])
+    acc_CoM_IMU.append([imu_acc[i,0],imu_acc[i,1],-imu_acc[i,2]-9.81])
 
 
     wrench0 = wrench[i, :]
@@ -389,6 +396,7 @@ thz_imu = []
 
 x_imu = []
 y_imu = []
+z_imu = []
 
 dthx_imu = []
 dthy_imu = []
@@ -396,6 +404,11 @@ dthz_imu = []
 
 dx_imu = []
 dy_imu = []
+dz_imu = []
+
+acc_x_imu = []
+acc_y_imu = []
+acc_z_imu = []
 
 rx_vicon = []
 ry_vicon = []
@@ -474,6 +487,7 @@ for i in range(len(p1_list)):
 
     x_imu.append(pos_CoM_IMU[i][0])
     y_imu.append(pos_CoM_IMU[i][1])
+    z_imu.append(pos_CoM_IMU[i][2])
 
 
     dth_cur_imu = np.array([dtheta_CoM_IMU[i][0], dtheta_CoM_IMU[i][1], dtheta_CoM_IMU[i][2]]).reshape(3,1)
@@ -485,6 +499,11 @@ for i in range(len(p1_list)):
 
     dx_imu.append(dpos_CoM_IMU[i][0])
     dy_imu.append(dpos_CoM_IMU[i][1])
+    dz_imu.append(dpos_CoM_IMU[i][2])
+
+    acc_x_imu.append(acc_CoM_IMU[i][0])
+    acc_y_imu.append(acc_CoM_IMU[i][1])
+    acc_z_imu.append(acc_CoM_IMU[i][2])
 
 for i in range(len(vicon_time_history)):
     thx_vicon.append(vicon_theta[i][0][0])
@@ -584,8 +603,9 @@ data_collection.update({'thx_vicon': thx_vicon[:indx_cutoff2], 'thy_vicon': thy_
                         'dthx_vicon': dthx_vicon[:indx_cutoff2], 'dthy_vicon': dthy_vicon[:indx_cutoff2], 'dthz_vicon': dthz_vicon[:indx_cutoff2],
                         'thx_imu': thx_imu[:indx_cutoff2], 'thy_imu': thy_imu[:indx_cutoff2], 'thz_imu': thz_imu[:indx_cutoff2],
                         'dthx_imu': dthx_imu[:indx_cutoff2], 'dthy_imu': dthy_imu[:indx_cutoff2], 'dthz_imu': dthz_imu[:indx_cutoff2],
-                        'x_imu': x_imu[:indx_cutoff2], 'y_imu': y_imu[:indx_cutoff2],
-                        'dx_imu': dx_imu[:indx_cutoff2], 'dy_imu': dy_imu[:indx_cutoff2],
+                        'x_imu': x_imu[:indx_cutoff2], 'y_imu': y_imu[:indx_cutoff2], 'z_imu': z_imu[:indx_cutoff2],
+                        'dx_imu': dx_imu[:indx_cutoff2], 'dy_imu': dy_imu[:indx_cutoff2], 'dz_imu': dz_imu[:indx_cutoff2],
+                        'acc_x_imu': acc_x_imu[:indx_cutoff2], 'acc_y_imu': acc_y_imu[:indx_cutoff2], 'acc_z_imu': acc_z_imu[:indx_cutoff2],
                         'p1x': p1x_list[:indx_cutoff2], 'p1y': p1y_list[:indx_cutoff2], 'p1z': p1z_list[:indx_cutoff2],
                         'p2x': p2x_list[:indx_cutoff2], 'p2y': p2y_list[:indx_cutoff2], 'p2z': p2z_list[:indx_cutoff2],
                         'p3x': p3x_list[:indx_cutoff2], 'p3y': p3y_list[:indx_cutoff2], 'p3z': p3z_list[:indx_cutoff2],

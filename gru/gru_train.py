@@ -15,7 +15,7 @@ train_cov = True
 training_percentage = 0.8
 # Hyper-parameters for state estimate
 num_outputs = 12
-input_size = 12
+input_size = 13
 sequence_length = 20
 hidden_size = 128
 num_layers = 2
@@ -25,7 +25,7 @@ learning_rate = 0.0001
 
 # Hyper-parameters for COV estimate
 num_outputs2 = 23
-input_size2 = 12
+input_size2 = 13
 sequence_length2 = 20
 hidden_size2 = 128
 num_layers2 = 2
@@ -48,6 +48,7 @@ state_VICON_init = data_collection['state_VICON']
 #state_KF = [state_KF_init[i:i+sequence_length] for i in range(len(state_KF_init)-sequence_length+1)]
 #state_VICON = [state_VICON[i+sequence_length-1] for i in range(len(state_KF))]
 state_KF = []
+state_IMU = []
 for i in range(len(state_KF_init) - sequence_length + 1):
     state_KF.append(state_KF_init[i:i + sequence_length])
 
@@ -191,11 +192,11 @@ for epoch in range(num_epochs2):
             print(f'Epoch [{epoch + 1}/{num_epochs2}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.16f}')
 
 # save your model
-torch.save(model.state_dict(), dir_path + '/OptiState/gru/model_cov.pth')
+torch.save(model2.state_dict(), dir_path + '/OptiState/gru/model_cov.pth')
 
 # test the model on unseen data
 # Put model in eval mode
-model.eval()
+model2.eval()
 
 loss_list = []
 
@@ -203,7 +204,7 @@ for i, (inputs, labels) in enumerate(test_loader):
     inputs = inputs.to(device)
     labels = labels.to(device)
     # Forward pass
-    outputs = model(inputs)
+    outputs = model2(inputs)
     loss = criterion(outputs, labels).cpu().detach().numpy()
     loss_list.append(loss)
 
@@ -218,3 +219,5 @@ plt.plot(loss_list_training)
 plt.title('Loss on training set: Cov')
 plt.xlabel('Data points')
 plt.ylabel('Loss')
+
+plt.show()

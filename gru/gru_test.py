@@ -8,14 +8,14 @@ import os
 
 # Hyper-parameters
 num_outputs = 12
-input_size = 12
+input_size = 13
 sequence_length = 20
 hidden_size = 128
 num_layers = 2
 
 # Hyper-parameters
 num_outputs2 = 23
-input_size2 = 12
+input_size2 = 13
 sequence_length2 = 20
 hidden_size2 = 128
 num_layers2 = 2
