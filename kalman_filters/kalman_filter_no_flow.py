@@ -2,6 +2,8 @@ import copy
 
 import numpy as np
 from settings import INITIAL_PARAMS
+from misc.force_controller import StanceController
+from misc.force_controller import next_state
 
 class Kalman_Filter:
     def __init__(self):
@@ -60,6 +62,19 @@ class Kalman_Filter:
         # model state
         self.x_model = INITIAL_PARAMS.STARTING_STATE
 
+        Q = np.array([100.0, 100.0, 100.0, 0.0, 0.0, 100.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        Q = np.diag(Q)
+        R_VALUE = 0.00001
+        R = np.array(
+            [R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE,
+             R_VALUE])
+        R = np.diag(R)
+        P = Q
+        # stance controller
+        self.stance_controller = StanceController(5, Q, R, P, self.dt)
+        self.p_mpc = np.zeros((12, 5 + 1))
+        self.body_mpc = np.zeros((12, 5 + 1))
+        self.contact_mpc = np.zeros((4, 5))
 
     def get_odom(self, p_cur, dp_cur, contact_cur, imu):
         sum_contacts = sum(contact_cur)
@@ -114,32 +129,42 @@ class Kalman_Filter:
         # we calculate the rotation matrix from the body frame to the world frame
         R = self.rotation_matrix_body_world(self.x[0], self.x[1], self.x[2])
         self.F[0:3, 6:9] = np.transpose(R)
-        I_hat_intertia_rot = np.matmul(R, np.matmul(self.inertia_rot, np.transpose(R)))
-        I_hat_inv_inertia_rot = np.linalg.inv(I_hat_intertia_rot)
-
-        p[0:3] = np.matmul(R, p[0:3].reshape(3, 1)).reshape(3, 1)
-        p[3:6] = np.matmul(R, p[3:6].reshape(3, 1)).reshape(3, 1)
-        p[6:9] = np.matmul(R, p[6:9].reshape(3, 1)).reshape(3, 1)
-        p[9:12] = np.matmul(R, p[9:12].reshape(3, 1)).reshape(3, 1)
-
-        d1 = self.skew(np.vstack((p[0, 0], p[1, 0], p[2, 0])))
-        d2 = self.skew(np.vstack((p[3, 0], p[4, 0], p[5, 0])))
-        d3 = self.skew(np.vstack((p[6, 0], p[7, 0], p[8, 0])))
-        d4 = self.skew(np.vstack((p[9, 0], p[10, 0], p[11, 0])))
-
-        self.B[6:9, 0:3] = np.matmul(I_hat_inv_inertia_rot, d1)
-        self.B[6:9, 3:6] = np.matmul(I_hat_inv_inertia_rot, d2)
-        self.B[6:9, 6:9] = np.matmul(I_hat_inv_inertia_rot, d3)
-        self.B[6:9, 9:] = np.matmul(I_hat_inv_inertia_rot, d4)
 
         # calculate the discretized version of F and B matrices
         self.F_d = self.identity_large + self.dt * self.F
         self.B_d = self.dt * self.B
 
         # we now calculate the prediction step using our model-based equation
-        self.x = np.matmul(self.F_d, self.x) + np.matmul(self.B_d, f) + self.dt * self.g
+        #self.x = np.matmul(self.F_d, self.x) + np.matmul(self.B_d, f) + self.dt * self.g
+        self.x = next_state(self.x, p, f, self.dt)
+
         self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
 
+        self.x_model = copy.deepcopy(self.x)
+
+    def predict_mpc(self, p, body_ref, cur_contact):
+        self.p_mpc[:,0] = p.reshape(12,)
+        self.p_mpc[:,1:] = p
+        self.body_mpc[:,0] = self.x.reshape(12,)
+        self.body_mpc[:,1:] = body_ref
+        self.contact_mpc[:,0] = cur_contact.reshape(4,)
+        self.contact_mpc[:,1:] = cur_contact
+        self.stance_controller.opti.set_value(self.stance_controller.p_mpc, self.p_mpc)
+        self.stance_controller.opti.set_value(self.stance_controller.body_mpc, self.body_mpc)
+        self.stance_controller.opti.set_value(self.stance_controller.contact_mpc, self.contact_mpc)
+        sol = self.stance_controller.opti.solve()
+        # retrieve desired reaction forces (control output of the MPC)
+        f = sol.value(self.stance_controller.controls)
+
+        R = self.rotation_matrix_body_world(self.x[0], self.x[1], self.x[2])
+        self.F[0:3, 6:9] = np.transpose(R)
+
+        # calculate the discretized version of F and B matrices
+        self.F_d = self.identity_large + self.dt * self.F
+
+        self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
+
+        self.x = next_state(self.x, p, f[:,0].reshape(12,1), self.dt)
         self.x_model = copy.deepcopy(self.x)
 
     def update(self):
@@ -163,6 +188,14 @@ class Kalman_Filter:
         odom = self.get_odom(p,dp,contact,imu) # TODO: include lidar once we have lidar data
         self.set_measurements(imu, odom, odom[0])
         self.predict(p,f)
+        self.update()
+
+        return self.x
+
+    def estimate_state_mpc(self, imu, lidar, p, dp, body_ref, contact):
+        odom = self.get_odom(p, dp, contact, imu)  # TODO: include lidar once we have lidar data
+        self.set_measurements(imu, odom, odom[0])
+        self.predict_mpc(p, body_ref, contact)
         self.update()
 
         return self.x

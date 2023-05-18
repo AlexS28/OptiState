@@ -11,9 +11,6 @@ import pdb
 # Gerardo Bledt, and Sangbae Kim'
 from casadi import *
 import numpy as np
-from time import perf_counter
-import control
-
 
 class StanceController():
     def __init__(self, N, Q, R, P, dt):
@@ -223,3 +220,69 @@ class StanceController():
         opts = {'printLevel': "none"}
         self.opti.minimize(self.cost)
         self.opti.solver('qpoases', opts)
+
+def rotation_matrix_body_world_numpy(thx, thy, thz):
+    # thx,thy,thz = thx[0],thy[0],thz[0]
+    # rotation matrix of body to world
+    th = np.array([thx, thy, thz])
+    Rz = np.vstack((np.hstack((np.cos(th[2]), -np.sin(th[2]), 0)), np.hstack((np.sin(th[2]), np.cos(th[2]), 0)), np.hstack((0, 0, 1))))
+    Ry = np.vstack((np.hstack((np.cos(th[1]), 0, np.sin(th[1]))), np.hstack((0, 1, 0)), np.hstack((-np.sin(th[1]), 0, np.cos(th[1])))))
+    Rx = np.vstack((np.hstack((1, 0, 0)), np.hstack((0, np.cos(th[0]), -np.sin(th[0]))), np.hstack((0, np.sin(th[0]), np.cos(th[0])))))
+
+    R = np.matmul(Rz, np.matmul(Ry, Rx))
+
+    return R
+
+# calculates P Matrix below
+zero_mat = np.array([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
+# identity matrix
+identity = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+# robot mass
+robot_m = 8.8
+# identity over mass matrix
+identity_m = np.array([[1 / robot_m, 0, 0], [0, 1 / robot_m, 0],
+                           [0, 0, 1 / robot_m ]])
+A = np.vstack((np.hstack((zero_mat, zero_mat, zero_mat, zero_mat)),
+                   np.hstack((zero_mat, zero_mat, zero_mat, identity)),
+                   np.hstack((zero_mat, zero_mat, zero_mat, zero_mat)),
+                   np.hstack((zero_mat, zero_mat, zero_mat, zero_mat))))
+B = np.vstack((np.hstack((zero_mat, zero_mat, zero_mat, zero_mat)),
+                   np.hstack((zero_mat, zero_mat, zero_mat, zero_mat)),
+                   np.hstack((zero_mat, zero_mat, zero_mat, zero_mat)),
+                   np.hstack((identity_m, identity_m, identity_m, identity_m))))
+# set the rotational inertia matrix of the robot in the body frame
+Px = 55303643.08 / (10 ** 9)
+Py = 60119440.34 / (10 ** 9)
+Pz = 105304340.05 / (10 ** 9)
+I = np.array([[Px, 0, 0], [0, Py, 0], [0, 0, Pz]])
+I_identity = np.eye(12, 12)
+g = np.array([0, 0, 0, 0,0,0,0,0,0,0,0,-9.81]).reshape(12,1)
+
+def skew_numpy(x):
+    return np.array([[0, -x[2][0], x[1][0]],
+                    [x[2][0], 0, -x[0][0]],
+                    [-x[1][0], x[0][0], 0]])
+
+def next_state(cur_state, cur_footstep, control_t, dt):
+    R = rotation_matrix_body_world_numpy(cur_state[0], cur_state[1], cur_state[2])
+    A[0:3, 6:9] = np.transpose(R)
+    I_hat = np.matmul(R, np.matmul(I, np.transpose(R)))
+    I_hat_inv = np.linalg.inv(I_hat)
+    cur_footstep[0:3] = np.matmul(R, cur_footstep[0:3].reshape(3, 1)).reshape(3, 1)
+    cur_footstep[3:6] = np.matmul(R, cur_footstep[3:6].reshape(3, 1)).reshape(3, 1)
+    cur_footstep[6:9] = np.matmul(R, cur_footstep[6:9].reshape(3, 1)).reshape(3, 1)
+    cur_footstep[9:12] = np.matmul(R, cur_footstep[9:12].reshape(3, 1)).reshape(3, 1)
+
+    d1 = skew_numpy(np.vstack((cur_footstep[0, 0], cur_footstep[1, 0], cur_footstep[2, 0])))
+    d2 = skew_numpy(np.vstack((cur_footstep[3, 0], cur_footstep[4, 0], cur_footstep[5, 0])))
+    d3 = skew_numpy(np.vstack((cur_footstep[6, 0], cur_footstep[7, 0], cur_footstep[8, 0])))
+    d4 = skew_numpy(np.vstack((cur_footstep[9, 0], cur_footstep[10, 0], cur_footstep[11, 0])))
+
+    B[6:9, 0:3] = np.matmul(I_hat_inv, d1)
+    B[6:9, 3:6] = np.matmul(I_hat_inv, d2)
+    B[6:9, 6:9] = np.matmul(I_hat_inv, d3)
+    B[6:9, 9:] = np.matmul(I_hat_inv, d4)
+
+    state = np.matmul(I_identity + A * dt, cur_state) + np.matmul(B * dt, control_t) + dt * g
+
+    return state

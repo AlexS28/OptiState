@@ -5,9 +5,9 @@ from settings import INITIAL_PARAMS
 import os
 
 from kalman_filter_no_flow import Kalman_Filter
-moving_average_dx = [0.0]*7
-moving_average_dy = [0.0]*4
-moving_average_dz = [0.0]*4
+moving_average_dx = [0.0]*1
+moving_average_dy = [0.0]*1
+moving_average_dz = [0.0]*1
 covariance_horizon = 2
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -162,38 +162,13 @@ for i in range(len(time)):
     f = np.array([f1x[i],f1y[i],f1z[i],f2x[i],f2y[i],f2z[i],f3x[i],f3y[i],f3z[i],f4x[i],f4y[i],f4z[i]]).reshape(12,1)
     imu = np.array([thx_imu[i],thy_imu[i],thz_imu[i],dthx_imu[i],dthy_imu[i],dthz_imu[i]]).reshape(6,1)
 
-    cur_contact = contact[i]
+    cur_contact = np.asarray(contact[i]).reshape(4,1)
 
-    x = KF.estimate_state(imu,None,p,dp,cur_contact,f)
+    #x = KF.estimate_state(imu,None,p,dp,cur_contact,f)
+    body_ref = np.array([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],
+                         dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]]).reshape(12,1)
 
-    moving_average_dx.append(x[9])
-    moving_average_dy.append(x[10])
-    moving_average_dz.append(x[11])
-
-    del moving_average_dx[0]
-    del moving_average_dy[0]
-    del moving_average_dz[0]
-
-    x[9] = sum(moving_average_dx)/len(moving_average_dx)
-    x[10] = sum(moving_average_dy)/len(moving_average_dy)
-    x[11] = sum(moving_average_dz)/len(moving_average_dz)
-
-    KF.x[9] = x[9]
-    KF.x[10] = x[10]
-    KF.x[11] = x[11]
-
-    thx_est.append(x[0])
-    thy_est.append(x[1])
-    thz_est.append(x[2])
-    rx_est.append(x[3])
-    ry_est.append(x[4])
-    rz_est.append(x[5])
-    dthx_est.append(x[6])
-    dthy_est.append(x[7])
-    dthz_est.append(x[8])
-    drx_est.append(x[9])
-    dry_est.append(x[10])
-    drz_est.append(x[11])
+    KF.predict_mpc(p, body_ref,cur_contact)
 
     # calculate the variances
     Q00.append((KF.x_model[0][0] - thx_vicon[i])**2)
@@ -226,59 +201,83 @@ for i in range(len(time)):
     R99.append((KF.z[9][0] - dry_vicon[i])**2)
     R1010.append((KF.z[10][0] - drz_vicon[i])**2)
 
-    if len(Q00) >= covariance_horizon:
-        KF.Q[0, 0] = sum(Q00) / (covariance_horizon - 1)
-        KF.Q[1, 1] = sum(Q11) / (covariance_horizon - 1)
-        KF.Q[2, 2] = sum(Q22) / (covariance_horizon - 1)
-        KF.Q[3, 3] = sum(Q33) / (covariance_horizon - 1)
-        KF.Q[4, 4] = sum(Q44) / (covariance_horizon - 1)
-        KF.Q[5, 5] = sum(Q55) / (covariance_horizon - 1)
-        KF.Q[6, 6] = sum(Q66) / (covariance_horizon - 1)
-        KF.Q[7, 7] = sum(Q77) / (covariance_horizon - 1)
-        KF.Q[8, 8] = sum(Q88) / (covariance_horizon - 1)
-        KF.Q[9, 9] = sum(Q99) / (covariance_horizon - 1)
-        KF.Q[10, 10] = sum(Q1010) / (covariance_horizon - 1)
-        KF.Q[11, 11] = sum(Q1111) / (covariance_horizon - 1)
-        Q00 = []
-        Q11 = []
-        Q22 = []
-        Q33 = []
-        Q44 = []
-        Q55 = []
-        Q66 = []
-        Q77 = []
-        Q88 = []
-        Q99 = []
-        Q1010 = []
-        Q1111 = []
-        KF.R[0, 0] = sum(R00) / (covariance_horizon - 1)
-        KF.R[1, 1] = sum(R11) / (covariance_horizon - 1)
-        KF.R[2, 2] = sum(R22) / (covariance_horizon - 1)
-        KF.R[3, 3] = sum(R33) / (covariance_horizon - 1)
-        KF.R[4, 4] = sum(R44) / (covariance_horizon - 1)
-        KF.R[5, 5] = sum(R55) / (covariance_horizon - 1)
-        KF.R[6, 6] = sum(R66) / (covariance_horizon - 1)
-        KF.R[7, 7] = sum(R77) / (covariance_horizon - 1)
-        KF.R[8, 8] = sum(R88) / (covariance_horizon - 1)
-        KF.R[9, 9] = sum(R99) / (covariance_horizon - 1)
-        KF.R[10, 10] = sum(R1010) / (covariance_horizon - 1)
-        R00 = []
-        R11 = []
-        R22 = []
-        R33 = []
-        R44 = []
-        R55 = []
-        R66 = []
-        R77 = []
-        R88 = []
-        R99 = []
-        R1010 = []
+KF.Q[0, 0] = sum(Q00) / (len(R00) - 1)
+KF.Q[1, 1] = sum(Q11) / (len(R00) - 1)
+KF.Q[2, 2] = sum(Q22) / (len(R00) - 1)
+KF.Q[3, 3] = sum(Q33) / (len(R00) - 1)
+KF.Q[4, 4] = sum(Q44) / (len(R00) - 1)
+KF.Q[5, 5] = sum(Q55) / (len(R00) - 1)
+KF.Q[6, 6] = sum(Q66) / (len(R00) - 1)
+KF.Q[7, 7] = sum(Q77) / (len(R00) - 1)
+KF.Q[8, 8] = sum(Q88) / (len(R00) - 1)
+KF.Q[9, 9] = sum(Q99) / (len(R00) - 1)
+KF.Q[10, 10] = sum(Q1010) / (len(R00) - 1)
+KF.Q[11, 11] = sum(Q1111) / (len(R00) - 1)
+
+KF.R[0, 0] = sum(R00) / (len(R00) - 1)
+KF.R[1, 1] = sum(R11) / (len(R00) - 1)
+KF.R[2, 2] = sum(R22) / (len(R00) - 1)
+KF.R[3, 3] = sum(R33) / (len(R00) - 1)
+KF.R[4, 4] = sum(R44) / (len(R00) - 1)
+KF.R[5, 5] = sum(R55) / (len(R00) - 1)
+KF.R[6, 6] = sum(R66) / (len(R00) - 1)
+KF.R[7, 7] = sum(R77) / (len(R00) - 1)
+KF.R[8, 8] = sum(R88) / (len(R00) - 1)
+KF.R[9, 9] = sum(R99) / (len(R00) - 1)
+KF.R[10, 10] = sum(R1010) / (len(R00) - 1)
+
+KF2 = Kalman_Filter()
+KF2.Q = KF.Q
+KF2.R = KF.R
+KF2.P = KF.Q
+
+for i in range(len(time)):
+    # we first build our arrays for p (12x1), dp (12x1), f (12x1), imu (6x1), contact (4x1)
+    p = np.array([p1x[i],p1y[i],p1z[i],p2x[i],p2y[i],p2z[i],p3x[i],p3y[i],p3z[i],p4x[i],p4y[i],p4z[i]]).reshape(12,1)
+    dp = np.array([dp1x[i],dp1y[i],dp1z[i],dp2x[i],dp2y[i],dp2z[i],dp3x[i],dp3y[i],dp3z[i],dp4x[i],dp4y[i],dp4z[i]]).reshape(12,1)
+    f = np.array([f1x[i],f1y[i],f1z[i],f2x[i],f2y[i],f2z[i],f3x[i],f3y[i],f3z[i],f4x[i],f4y[i],f4z[i]]).reshape(12,1)
+    imu = np.array([thx_imu[i],thy_imu[i],thz_imu[i],dthx_imu[i],dthy_imu[i],dthz_imu[i]]).reshape(6,1)
+
+    cur_contact = np.asarray(contact[i]).reshape(4,1)
+    body_ref = np.array([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],
+                         dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]]).reshape(12,1)
+    x = KF2.estimate_state_mpc(imu,None,p,dp,body_ref, cur_contact)
+
+    moving_average_dx.append(x[9])
+    moving_average_dy.append(x[10])
+    moving_average_dz.append(x[11])
+
+    del moving_average_dx[0]
+    del moving_average_dy[0]
+    del moving_average_dz[0]
+
+    x[9] = sum(moving_average_dx)/len(moving_average_dx)
+    x[10] = sum(moving_average_dy)/len(moving_average_dy)
+    x[11] = sum(moving_average_dz)/len(moving_average_dz)
+
+    KF.x[9] = x[9]
+    KF.x[10] = x[10]
+    KF.x[11] = x[11]
+
+    thx_est.append(x[0])
+    thy_est.append(x[1])
+    thz_est.append(x[2])
+    rx_est.append(x[3])
+    ry_est.append(x[4])
+    rz_est.append(x[5])
+    dthx_est.append(x[6])
+    dthy_est.append(x[7])
+    dthz_est.append(x[8])
+    drx_est.append(x[9])
+    dry_est.append(x[10])
+    drz_est.append(x[11])
 
     state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0], acc_z_imu[i]])
     state_VICON.append([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]])
 
-    COV.append([KF.Q[0,0], KF.Q[1,1], KF.Q[2,2], KF.Q[3,3], KF.Q[4,4], KF.Q[5,5], KF.Q[6,6], KF.Q[7,7], KF.Q[8,8], KF.Q[9,9], KF.Q[10,10], KF.Q[11,11],
-                KF.R[0,0], KF.R[1,1], KF.R[2,2], KF.R[3,3], KF.R[4,4], KF.R[5,5], KF.R[6,6], KF.R[7,7], KF.R[8,8], KF.R[9,9], KF.R[10,10]])
+
+
+
 
 plt.figure(1)
 plt.plot(time,dthx_est)
@@ -316,8 +315,8 @@ plt.figure(5)
 #plt.plot(time,drx_vicon)
 #plt.plot(time,dry_est)
 #plt.plot(time,dry_vicon)
-plt.plot(time,drz_est)
-plt.plot(time,drz_vicon)
+plt.plot(time,drx_est)
+plt.plot(time,drx_vicon)
 plt.legend(['est dx','vicon dx', 'est dy','vicon dy', 'est dz','vicon dz'])
 plt.title('velocity')
 plt.show()
@@ -326,7 +325,7 @@ plt.show()
 # save the Kalman filter estimates to the
 # save data in pickle file
 data_collection = {}
-data_collection.update({'state_KF': state_KF, 'state_VICON': state_VICON, 'COV': COV})
+data_collection.update({'state_KF': state_KF, 'state_VICON': state_VICON})
 
 with open(dir_path+'/OptiState/data_collection/rnn_data.pkl', 'wb') as f:
     pickle.dump(data_collection, f)

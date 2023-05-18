@@ -14,11 +14,11 @@ hidden_size = 128
 num_layers = 2
 
 # Hyper-parameters
-num_outputs2 = 23
-input_size2 = 13
-sequence_length2 = 20
-hidden_size2 = 128
-num_layers2 = 2
+#num_outputs2 = 23
+#input_size2 = 13
+#sequence_length2 = 20
+#hidden_size2 = 128
+#num_layers2 = 2
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
@@ -29,7 +29,7 @@ with open(dir_path+'/OptiState/data_collection/rnn_data.pkl', 'rb') as f:
 # get data from dictionary
 state_KF_init = data_collection['state_KF']
 state_VICON_init = data_collection['state_VICON']
-state_COV_init = data_collection['COV']
+#state_COV_init = data_collection['COV']
 
 
 state_KF = []
@@ -37,34 +37,34 @@ for i in range(len(state_KF_init) - sequence_length + 1):
     state_KF.append(state_KF_init[i:i + sequence_length])
 
 state_VICON = []
-state_COV = []
+#state_COV = []
 for i in range(len(state_KF)):
     state_VICON.append(state_VICON_init[i + sequence_length - 1])
-    state_COV.append(state_COV_init[i + sequence_length - 1])
+#    state_COV.append(state_COV_init[i + sequence_length - 1])
 
 # convert to tensor format
 state_KF_tensor = torch.tensor(state_KF, dtype=torch.float32)
 state_VICON_tensor = torch.tensor(state_VICON, dtype=torch.float32)
-state_COV_tensor = torch.tensor(state_COV, dtype=torch.float32)
+#state_COV_tensor = torch.tensor(state_COV, dtype=torch.float32)
 
 # Create TensorDataset object
 dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
-dataset2 = TensorDataset(state_KF_tensor, state_COV_tensor)
+#dataset2 = TensorDataset(state_KF_tensor, state_COV_tensor)
 
 model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
-model2 = RNN(input_size2, hidden_size2, num_layers2, num_outputs2, device, True).to(device)
+#model2 = RNN(input_size2, hidden_size2, num_layers2, num_outputs2, device, True).to(device)
 
 # load your saved model
-model.load_state_dict(torch.load(dir_path + '/OptiState/gru/model.pth'))
-model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/model_cov.pth'))
+model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model2.pth'))
+#model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/model_cov.pth'))
 
 # Put model in eval mode
 model.eval()
-model2.eval()
+#model2.eval()
 
 # Create DataLoader object for entire dataset
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
-data_loader2 = DataLoader(dataset=dataset2, batch_size=1, shuffle=False)
+#data_loader2 = DataLoader(dataset=dataset2, batch_size=1, shuffle=False)
 
 # Create lists to store predicted and ground truth values
 preds = []
@@ -174,9 +174,9 @@ plt.plot(ground_truth[:, 11], label="Vicon")
 plt.plot(input_KF[:, 11], label="Kalman Filter")
 plt.title('dz')
 plt.legend(['dz GRU','dz Vicon','dz Kalman Filter'])
+plt.show()
 
-
-
+"""
 # Create lists to store predicted and ground truth values
 preds = []
 ground_truth = []
@@ -236,3 +236,4 @@ plt.plot(ground_truth[:, 13])
 plt.legend(['predicted', 'ground truth'])
 plt.title('R11')
 plt.show()
+"""
