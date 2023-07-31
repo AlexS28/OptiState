@@ -9,14 +9,13 @@ class Kalman_Filter:
     def __init__(self):
         # state predicted by KF: thx, thy, thz, x, y, z, dthx, dthy, dthz, dx, dy, dz
         self.x = INITIAL_PARAMS.STARTING_STATE
-        # measurement w/o factor graph: thx^imu, thy^imu, thz^imu, z^odom, z^lidar, dthx^imu, dthy^imu, dthz^imu,
+        # measurement w/o factor graph: thx^imu, thy^imu, thz^imu, z^odom, dthx^imu, dthy^imu, dthz^imu,
         # vx^odom, vy^odom, vz^odom
-        self.z = np.zeros((11,1))
+        self.z = np.zeros((10,1))
         # we define the H matrix based on the measurements defined in z
         self.H = np.array([[1,0,0,0,0,0,0,0,0,0,0,0],
                           [0,1,0,0,0,0,0,0,0,0,0,0],
                           [0,0,1,0,0,0,0,0,0,0,0,0],
-                          [0,0,0,0,0,1,0,0,0,0,0,0],
                           [0,0,0,0,0,1,0,0,0,0,0,0],
                           [0,0,0,0,0,0,1,0,0,0,0,0],
                           [0,0,0,0,0,0,0,1,0,0,0,0],
@@ -28,7 +27,7 @@ class Kalman_Filter:
         # Kalman Filter parameters
         self.P = INITIAL_PARAMS.P
         self.Q = INITIAL_PARAMS.Q
-        self.R = INITIAL_PARAMS.R_NO_FLOW
+        self.R = INITIAL_PARAMS.R
         # we now define our model parameters
         # robot mass
         self.m = INITIAL_PARAMS.ROBOT_MASS
@@ -100,27 +99,21 @@ class Kalman_Filter:
         # transform into world frame
         R_base_to_world = self.rotation_matrix_body_world(imu[0], imu[1], imu[2])
         base_velocity[:, 0] = np.matmul(R_base_to_world, base_velocity).reshape(3, )
-
         odom = np.array([base_pos_z, base_velocity[0], base_velocity[1], base_velocity[2]]).reshape(4,1)
-        #odom = np.array([base_pos_z, imu2[0], imu2[1], base_velocity[2]]).reshape(4, 1)
 
         return odom
 
 
-    def set_measurements(self, imu, odom, lidar):
-        # thx ^ imu, thy ^ imu, thz ^ imu, z ^ odom, z ^ lidar, dthx ^ imu, dthy ^ imu, dthz ^ imu,
+    def set_measurements(self, imu, odom):
+        # thx ^ imu, thy ^ imu, thz ^ imu, z ^ odom,  dthx ^ imu, dthy ^ imu, dthz ^ imu,
         # vx^odom, vy^odom, vz^odom
-
         # imu is a 6x1 array: thx, thy, thz, dthx, dthy, dthz
         self.z[0:3] = imu[0:3]
-        self.z[5:8] = imu[3:6]
+        self.z[4:7] = imu[3:6]
 
         # odom is a 4x1 array: z, vx, vy, vz
         self.z[3] = odom[0]
-        self.z[8:11] = odom[1:]
-
-        # lidar is a 1x1 array: z
-        self.z[4] = lidar[0]
+        self.z[7:10] = odom[1:]
 
     def predict(self, p, f):
         # this function predicts the next state x and covariance P based on the current state and current covariance P
@@ -175,7 +168,7 @@ class Kalman_Filter:
         self.x = self.x + np.matmul(K, y_bar)
         self.P = np.matmul(self.identity_large - np.matmul(K, self.H), self.P)
 
-    def estimate_state(self, imu, lidar, p, dp, contact, f):
+    def estimate_state(self, imu, p, dp, contact, f):
         # this function will estimate the state of the robot using the Kalman filter
         # inputs are the current measurements:
         # imu is a 6x1 array: thx, thy, thz, dthx, dthy, dthz
@@ -185,16 +178,16 @@ class Kalman_Filter:
         # p: 12x1 array (x,y,z) position per leg
         # f: 12x1 array(x,y,z) ground reaction force per leg
         # output: update state x
-        odom = self.get_odom(p,dp,contact,imu) # TODO: include lidar once we have lidar data
-        self.set_measurements(imu, odom, odom[0])
+        odom = self.get_odom(p,dp,contact,imu)
+        self.set_measurements(imu, odom)
         self.predict(p,f)
         self.update()
 
         return self.x
 
-    def estimate_state_mpc(self, imu, lidar, p, dp, body_ref, contact):
-        odom = self.get_odom(p, dp, contact, imu)  # TODO: include lidar once we have lidar data
-        self.set_measurements(imu, odom, odom[0])
+    def estimate_state_mpc(self, imu, p, dp, body_ref, contact):
+        odom = self.get_odom(p, dp, contact, imu)
+        self.set_measurements(imu, odom)
         self.predict_mpc(p, body_ref, contact)
         self.update()
 

@@ -3,12 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from settings import INITIAL_PARAMS
 import os
+from kalman_filter import Kalman_Filter
 
-from kalman_filter_no_flow import Kalman_Filter
-moving_average_dx = [0.0]*1
-moving_average_dy = [0.0]*1
-moving_average_dz = [0.0]*1
-covariance_horizon = 2
+filter_horizon = 2
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -141,19 +138,16 @@ R77 = []
 R88 = []
 R99 = []
 R1010 = []
-R00.append(INITIAL_PARAMS.R_NO_FLOW[0,0])
-R11.append(INITIAL_PARAMS.R_NO_FLOW[1,1])
-R22.append(INITIAL_PARAMS.R_NO_FLOW[2,2])
-R33.append(INITIAL_PARAMS.R_NO_FLOW[3,3])
-R44.append(INITIAL_PARAMS.R_NO_FLOW[4,4])
-R55.append(INITIAL_PARAMS.R_NO_FLOW[5,5])
-R66.append(INITIAL_PARAMS.R_NO_FLOW[6,6])
-R77.append(INITIAL_PARAMS.R_NO_FLOW[7,7])
-R88.append(INITIAL_PARAMS.R_NO_FLOW[8,8])
-R99.append(INITIAL_PARAMS.R_NO_FLOW[9,9])
-R1010.append(INITIAL_PARAMS.R_NO_FLOW[10,10])
-
-COV = []
+R00.append(INITIAL_PARAMS.R[0,0])
+R11.append(INITIAL_PARAMS.R[1,1])
+R22.append(INITIAL_PARAMS.R[2,2])
+R33.append(INITIAL_PARAMS.R[3,3])
+R44.append(INITIAL_PARAMS.R[4,4])
+R55.append(INITIAL_PARAMS.R[5,5])
+R66.append(INITIAL_PARAMS.R[6,6])
+R77.append(INITIAL_PARAMS.R[7,7])
+R88.append(INITIAL_PARAMS.R[8,8])
+R99.append(INITIAL_PARAMS.R[9,9])
 
 for i in range(len(time)):
     # we first build our arrays for p (12x1), dp (12x1), f (12x1), imu (6x1), contact (4x1)
@@ -184,22 +178,19 @@ for i in range(len(time)):
     Q1010.append((KF.x_model[10][0] - dry_vicon[i])**2)
     Q1111.append((KF.x_model[11][0] - drz_vicon[i])**2)
 
-
-    # thx^imu, thy^imu, thz^imu, z^odom, z^lidar, dthx^imu, dthy^imu, dthz^imu,
+    # thx^imu, thy^imu, thz^imu, z^odom, dthx^imu, dthy^imu, dthz^imu,
     # vx^odom, vy^odom, vz^odom
-
 
     R00.append((KF.z[0][0] - thx_vicon[i])**2)
     R11.append((KF.z[1][0] - thy_vicon[i])**2)
     R22.append((KF.z[2][0] - thz_vicon[i])**2)
     R33.append((KF.z[3][0] - rz_vicon[i])**2)
-    R44.append((KF.z[4][0] - rz_vicon[i])**2)
-    R55.append((KF.z[5][0] - dthx_vicon[i])**2)
-    R66.append((KF.z[6][0] - dthy_vicon[i])**2)
-    R77.append((KF.z[7][0] - dthz_vicon[i])**2)
-    R88.append((KF.z[8][0] - drx_vicon[i])**2)
-    R99.append((KF.z[9][0] - dry_vicon[i])**2)
-    R1010.append((KF.z[10][0] - drz_vicon[i])**2)
+    R55.append((KF.z[4][0] - dthx_vicon[i])**2)
+    R66.append((KF.z[5][0] - dthy_vicon[i])**2)
+    R77.append((KF.z[6][0] - dthz_vicon[i])**2)
+    R88.append((KF.z[7][0] - drx_vicon[i])**2)
+    R99.append((KF.z[8][0] - dry_vicon[i])**2)
+    R1010.append((KF.z[9][0] - drz_vicon[i])**2)
 
 KF.Q[0, 0] = sum(Q00) / (len(R00) - 1)
 KF.Q[1, 1] = sum(Q11) / (len(R00) - 1)
@@ -224,12 +215,13 @@ KF.R[6, 6] = sum(R66) / (len(R00) - 1)
 KF.R[7, 7] = sum(R77) / (len(R00) - 1)
 KF.R[8, 8] = sum(R88) / (len(R00) - 1)
 KF.R[9, 9] = sum(R99) / (len(R00) - 1)
-KF.R[10, 10] = sum(R1010) / (len(R00) - 1)
+
 
 KF2 = Kalman_Filter()
 KF2.Q = KF.Q
 KF2.R = KF.R
 KF2.P = KF.Q
+
 
 for i in range(len(time)):
     # we first build our arrays for p (12x1), dp (12x1), f (12x1), imu (6x1), contact (4x1)
@@ -241,7 +233,12 @@ for i in range(len(time)):
     cur_contact = np.asarray(contact[i]).reshape(4,1)
     body_ref = np.array([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],
                          dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]]).reshape(12,1)
-    x = KF2.estimate_state_mpc(imu,None,p,dp,body_ref, cur_contact)
+    x = KF2.estimate_state_mpc(imu,p,dp,body_ref, cur_contact)
+
+    if i == 0:
+        moving_average_dx = [x[9][0]] * filter_horizon
+        moving_average_dy = [x[10][0]] * filter_horizon
+        moving_average_dz = [x[11][0]] * filter_horizon
 
     moving_average_dx.append(x[9])
     moving_average_dy.append(x[10])
@@ -272,12 +269,8 @@ for i in range(len(time)):
     dry_est.append(x[10])
     drz_est.append(x[11])
 
-    state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0], acc_z_imu[i]])
+    state_KF.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0], acc_x_imu[i], acc_y_imu[i], acc_z_imu[i]])
     state_VICON.append([thx_vicon[i],thy_vicon[i],thz_vicon[i],rx_vicon[i],ry_vicon[i],rz_vicon[i],dthx_vicon[i],dthy_vicon[i],dthz_vicon[i],drx_vicon[i],dry_vicon[i],drz_vicon[i]])
-
-
-
-
 
 plt.figure(1)
 plt.plot(time,dthx_est)
@@ -313,10 +306,10 @@ plt.title('position')
 plt.figure(5)
 #plt.plot(time,drx_est)
 #plt.plot(time,drx_vicon)
-#plt.plot(time,dry_est)
-#plt.plot(time,dry_vicon)
-plt.plot(time,drx_est)
-plt.plot(time,drx_vicon)
+plt.plot(time,dry_est)
+plt.plot(time,dry_vicon)
+#plt.plot(time,drz_est)
+#plt.plot(time,drz_vicon)
 plt.legend(['est dx','vicon dx', 'est dy','vicon dy', 'est dz','vicon dz'])
 plt.title('velocity')
 plt.show()

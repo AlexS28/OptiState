@@ -8,12 +8,12 @@ from gru_model import RNN
 import os
 
 # Hyper-parameters
-num_models = 2 # TODO: Ensure this number is the same as the number of models in the gru_models directory!!!
+num_models = 2
 num_outputs = 12
 input_size = 13
-sequence_length = 20
+sequence_length = 10
 hidden_size = 128
-num_layers = 2
+num_layers = 4
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
