@@ -406,8 +406,8 @@ for file_name in file_list:
             pickle.dump(data_collection, f)
 
         traj_num += 1
-        if traj_num == 3:
-            break
+        #if traj_num == 3:
+        #    break
 
 
 
