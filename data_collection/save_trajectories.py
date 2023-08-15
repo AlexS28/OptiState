@@ -382,7 +382,7 @@ for file_name in file_list:
             contact_list.append(np.array([cur_contact[0],cur_contact[1],cur_contact[2],cur_contact[3]]).reshape(4,1))
 
         # Create a directory to save images
-        image_directory = dir_path + '/OptiState/data_collection/trajectories/saved_images/saved_images_traj_1'
+        image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{traj_num}'
         if not os.path.exists(image_directory):
             os.makedirs(image_directory)
 
@@ -395,7 +395,7 @@ for file_name in file_list:
             file_name = f"{image_directory}/image_{i}.png"
             cv2.imwrite(file_name, depth_image_8bit)
 
-        traj_num += 1
+
 
         plt.show()
         # save trajectory into pkl file
@@ -404,6 +404,10 @@ for file_name in file_list:
 
         with open(dir_path+'/OptiState/data_collection/trajectories/saved_trajectories.pkl', 'wb') as f:
             pickle.dump(data_collection, f)
+
+        traj_num += 1
+        if traj_num == 3:
+            break
 
 
 
