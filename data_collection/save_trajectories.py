@@ -61,6 +61,7 @@ for file_name in file_list:
         t265_list = []
         mocap_list = []
         depth_list = []
+        time_list = []
 
         def quaternion_2_euler(quaternion):
             """ quaternion 2 euler
@@ -206,6 +207,8 @@ for file_name in file_list:
                                        data_t265[i,3],data_t265[i,4],data_t265[i,5],
                                        data_t265[i,6],data_t265[i,7],data_t265[i,8],
                                        data_t265[i,9],data_t265[i,10],data_t265[i,11]]).reshape(12,1))
+
+            time_list.append(data_time[0,i])
 
             imu_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],data_t265[i,9],data_t265[i,10],data_t265[i,11]]).reshape(6,1))
 
@@ -400,7 +403,7 @@ for file_name in file_list:
         plt.show()
         # save trajectory into pkl file
         data_collection.update({traj_num:{'p_list_est': p_list_est, 'p_list_ref': p_list_ref, 'dp_list': dp_list, 'imu_list': imu_list, 'f_list': f_list,
-                                   'contact_list': contact_list, 't265_list': t265_list, 'mocap_list': mocap_list}})
+                                   'contact_list': contact_list, 't265_list': t265_list, 'mocap_list': mocap_list, 'time_list': time_list}})
 
         with open(dir_path+'/OptiState/data_collection/trajectories/saved_trajectories.pkl', 'wb') as f:
             pickle.dump(data_collection, f)
