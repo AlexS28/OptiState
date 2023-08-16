@@ -252,9 +252,9 @@ for i in range(len(time)):
     x[10] = sum(moving_average_dy)/len(moving_average_dy)
     x[11] = sum(moving_average_dz)/len(moving_average_dz)
 
-    KF.x[9] = x[9]
-    KF.x[10] = x[10]
-    KF.x[11] = x[11]
+    KF2.x[9] = x[9]
+    KF2.x[10] = x[10]
+    KF2.x[11] = x[11]
 
     thx_est.append(x[0])
     thy_est.append(x[1])

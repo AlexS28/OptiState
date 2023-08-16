@@ -190,7 +190,24 @@ for file_name in file_list:
         dry_t265 = []
         drz_t265 = []
 
-        for i in range(cutoff,end_cutoff-1):
+        for i in range(cutoff-1,end_cutoff-1):
+            t0 = data_time[0, i]
+            t1 = data_time[0, i + 1]
+            dt = t1 - t0
+
+            cur_vel_t0 = data_t265[i,9:12]
+            cur_vel_t1 = data_t265[i+1,9:12]
+            cur_ax = (cur_vel_t1[0] - cur_vel_t0[0]) / dt
+            cur_ay = (cur_vel_t1[1] - cur_vel_t0[1]) / dt
+            cur_az = (cur_vel_t1[2] - cur_vel_t0[2]) / dt
+
+            cur_dth_t0 = data_t265[i, 6:9]
+            cur_dth_t1 = data_t265[i + 1, 6:9]
+            cur_ddthx = (cur_dth_t1[0] - cur_dth_t0[0]) / dt
+            cur_ddthy = (cur_dth_t1[1] - cur_dth_t0[1]) / dt
+            cur_ddthz = (cur_dth_t1[2] - cur_dth_t0[2]) / dt
+
+
             thx_t265.append(data_t265[i,0])
             thy_t265.append(data_t265[i,1])
             thz_t265.append(data_t265[i,2])
@@ -209,8 +226,8 @@ for file_name in file_list:
                                        data_t265[i,9],data_t265[i,10],data_t265[i,11]]).reshape(12,1))
 
             time_list.append(data_time[0,i])
-
-            imu_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],data_t265[i,9],data_t265[i,10],data_t265[i,11]]).reshape(6,1))
+            # thx, thy, thz, dthx, dthy, dthz, ddthx, ddthy, ddthz, ddx, ddy, ddz
+            imu_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],data_t265[i,6],data_t265[i,7],data_t265[i,8],cur_ddthx,cur_ddthy,cur_ddthz,cur_ax,cur_ay,cur_az]).reshape(12,1))
 
         plt.figure(1)
         plt.plot(thx_t265)

@@ -59,6 +59,9 @@ class StanceController():
         self.p_mpc = self.opti.parameter(12, self.N+1)
         # provide a parameter for the contact matrix (0 means foot is in swing, and 1 means foot is in stance)
         self.contact_mpc = self.opti.parameter(4,self.N)
+        # since dt may change, we make it a parameter
+        self.dt_param = self.opti.parameter(1, 1)
+        self.opti.set_value(self.dt_param,self.dt)
         # set up the MPC problem
         self.objective_function()
         self.control_constraints()
@@ -87,7 +90,7 @@ class StanceController():
             # calculate the next state, using the time-invarient linearly discretized equation
             I = np.eye(12, 12)
 
-            state = mtimes(I + self.A * self.dt, state) + mtimes(self.B * self.dt, control_t) + self.dt * self.g
+            state = mtimes(I + self.A * self.dt_param, state) + mtimes(self.B * self.dt_param, control_t) + self.dt_param * self.g
 
             state_ref = self.body_mpc[:, i+1]
             control = self.controls[:, i]

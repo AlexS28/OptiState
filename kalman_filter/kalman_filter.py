@@ -1,5 +1,4 @@
 import copy
-
 import numpy as np
 from settings import INITIAL_PARAMS
 from misc.force_controller import StanceController
@@ -9,7 +8,7 @@ class Kalman_Filter:
     def __init__(self):
         # state predicted by KF: thx, thy, thz, x, y, z, dthx, dthy, dthz, dx, dy, dz
         self.x = INITIAL_PARAMS.STARTING_STATE
-        # measurement w/o factor graph: thx^imu, thy^imu, thz^imu, z^odom, dthx^imu, dthy^imu, dthz^imu,
+        # measurement: thx^imu, thy^imu, thz^imu, z^odom, dthx^imu, dthy^imu, dthz^imu,
         # vx^odom, vy^odom, vz^odom
         self.z = np.zeros((10,1))
         # we define the H matrix based on the measurements defined in z
@@ -28,6 +27,7 @@ class Kalman_Filter:
         self.P = INITIAL_PARAMS.P
         self.Q = INITIAL_PARAMS.Q
         self.R = INITIAL_PARAMS.R
+        self.P_trace = np.trace(self.P)
         # we now define our model parameters
         # robot mass
         self.m = INITIAL_PARAMS.ROBOT_MASS
@@ -56,7 +56,7 @@ class Kalman_Filter:
         self.g = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -9.81]).reshape(12, 1)
 
         # we calculate the discretized time of our model equation
-        self.dt = 0.01
+        self.dt = INITIAL_PARAMS.DT
 
         # model state
         self.x_model = INITIAL_PARAMS.STARTING_STATE
@@ -81,11 +81,11 @@ class Kalman_Filter:
         base_pos_z = 0.0
         for i in range(4):
             if contact_cur[i] == 1:
-                base_vel_x = base_vel_x + dp_cur[3 * i]*2.0
-                base_vel_y = base_vel_y + dp_cur[3 * i + 1]*2.0
+                base_vel_x = base_vel_x + dp_cur[3 * i]
+                base_vel_y = base_vel_y + dp_cur[3 * i + 1]
                 base_pos_z = base_pos_z + p_cur[3 * i + 2]
             if contact_cur[i] == 0:
-                base_vel_z = base_vel_z + dp_cur[3 * i + 2]*2.0
+                base_vel_z = base_vel_z + dp_cur[3 * i + 2]
 
         if not sum_contacts == 0:
             base_vel_x = -1 * base_vel_x / sum_contacts
@@ -134,6 +134,7 @@ class Kalman_Filter:
         self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
 
         self.x_model = copy.deepcopy(self.x)
+        self.P_trace = copy.deepcopy(np.trace(self.P))
 
     def predict_mpc(self, p, body_ref, cur_contact):
         self.p_mpc[:,0] = p.reshape(12,)
@@ -159,6 +160,7 @@ class Kalman_Filter:
 
         self.x = next_state(self.x, p, f[:,0].reshape(12,1), self.dt)
         self.x_model = copy.deepcopy(self.x)
+        self.P_trace = copy.deepcopy(np.trace(self.P))
 
     def update(self):
         # this is the update step for our Kalman filter. Before running this function, run the prediction function first

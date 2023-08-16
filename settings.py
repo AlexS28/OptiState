@@ -1,6 +1,8 @@
 import numpy as np
 class INITIAL_PARAMS:
     # OptiState settings
+    # Discretized time of data collection
+    DT = 0.01
     # Robot height, defined from ground to CoM of in meters
     ROBOT_HEIGHT = 0.28
     # Mass of the robot in kg
