@@ -7,7 +7,7 @@ def get_args_parser():
     parser.add_argument('-lr', default=4e-4, type=float, help='initial learning rate')
     parser.add_argument('-weight_decay', default=0.1, type=float, help='weight decay for training')
     parser.add_argument('-batch_size', default=64, type=int, help='batch size for training')
-    parser.add_argument('-num_epochs', default=10, type=int, help='number of epochs for training')
+    parser.add_argument('-num_epochs', default=1000, type=int, help='number of epochs for training')
     parser.add_argument('-load_model_name', default=None , help='name of the model to load before training')
     parser.add_argument('-save_model_name', default=None , help='name of the model to save after training')
     parser.add_argument('-training_log_save', default='transformer_log', help='save name for loss log of training')
@@ -57,18 +57,20 @@ transform = transforms.Compose([
 # Open the saved image using PIL
 image_list = []
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-folder_path = dir_path + "/OptiState/transformer/imagesReal"
+folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_combined"
 
 idx = 0
+image_iteration = 1
 for i in range(1):
-    print(i)
     for filename in os.listdir(folder_path):
+        print(f'Converting images to tensor format, current image number: {image_iteration}')
         if filename.endswith(".png"):
             image_path = os.path.join(folder_path, filename)
             with Image.open(image_path) as img:
                 img = img.convert('RGB')
                 img = transform(img).unsqueeze(0)
                 image_list.append(img)
+                image_iteration += 1
 
 training_list = image_list[:len(image_list) - 50]
 val_list = image_list[len(image_list) - 50:]
@@ -103,7 +105,7 @@ line1, = ax.plot(train_losses, label='Training Loss')
 line2, = ax.plot(val_losses, label='Validation Loss')
 ax.legend()
 
-
+print("NOW TRAINING THE TRANSFORMER")
 for epoch in range(num_epochs):
     # training
     train_loss = 0.0
@@ -138,7 +140,7 @@ for epoch in range(num_epochs):
     fig.canvas.flush_events()
 
     if epoch % 1 == 0:
-        print(f'Epoch:{epoch + 1}, Loss:{train_loss:.6f}, Val loss:{val_loss:.6f}')
+        print(f'Epoch:{epoch + 1}/{num_epochs}, Loss:{train_loss:.6f}, Val loss:{val_loss:.6f}')
 
     if epoch % 100 == 0:
         torch.save(model.state_dict(), save_model_name)

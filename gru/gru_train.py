@@ -9,35 +9,60 @@ import os
 from torchvision import transforms
 from PIL import Image
 from transformer.transformer_model import Transformer_Autoencoder
+import shutil
 
+# specify the dataset number to train on
+dataset_train_number = [1,2,3,4,5,6,7]
 # specify number of models to train
 num_models = 1
-
 # we train both the model for state output, and afterwards, model for the covariances
 training_percentage = 0.8
 # Hyper-parameters for state estimate
 num_outputs = 12
-input_size = 13+128
+input_size = 30+128
 sequence_length = 10
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 5000
+num_epochs = 1000
 batch_size = 64
-learning_rate = 0.00001
+learning_rate = 0.000001
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using Device: {device}')
 
-with open(dir_path + '/OptiState/data_collection/rnn_data.pkl', 'rb') as f:
+with open(dir_path + '/OptiState/data_collection/trajectories/rnn_data.pkl', 'rb') as f:
     data_collection = pickle.load(f)
 
-# get data from dictionary
-state_KF_init = data_collection['state_KF']
-state_VICON_init = data_collection['state_VICON']
+state_KF_init = []
+state_VICON_init = []
+images_folder_train = dir_path + '/OptiState/data_collection/trajectories/saved_images/saved_images_traj_train'
 
-# get images for autoencoder
+# Check if the folder exists
+if os.path.exists(images_folder_train):
+    # Remove the folder and its contents
+    shutil.rmtree(images_folder_train)
+
+if not os.path.exists(images_folder_train):
+    os.makedirs(images_folder_train)
+
+image_iterate = 1
+for i in range(len(dataset_train_number)):
+    cur_dataset = dataset_train_number[i]
+    state_KF_init.extend(data_collection[cur_dataset]['state_INPUT'])
+    state_VICON_init.extend(data_collection[cur_dataset]['state_MOCAP'])
+
+    cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
+    image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
+    # Rename and copy images to the training folder
+    for index, image_file in enumerate(image_files):
+        new_filename = f"image_{cur_dataset}_{image_iterate}.png"
+        source_path = os.path.join(cur_image_directory, image_file)
+        destination_path = os.path.join(images_folder_train, new_filename)
+        shutil.copyfile(source_path, destination_path)
+        image_iterate+=1
+
 
 # Define the transformation to apply to the image
 transform = transforms.Compose([
@@ -47,8 +72,6 @@ transform = transforms.Compose([
 ])
 
 image_list = []
-
-folder_path = dir_path + "/OptiState/transformer/imagesReal"
 import re
 
 def numerical_sort(value):
@@ -64,9 +87,10 @@ model.eval()
 
 # load the autoencoder and output encoder values
 encoder_output = []
-for filename in sorted(os.listdir(folder_path), key=numerical_sort):
+cur_image_iterate = 1
+for filename in sorted(os.listdir(images_folder_train), key=numerical_sort):
     if filename.endswith(".png"):
-        image_path = os.path.join(folder_path, filename)
+        image_path = os.path.join(images_folder_train, filename)
         with Image.open(image_path) as img:
             img = img.convert('RGB')
             img = transform(img).unsqueeze(0)
@@ -75,17 +99,22 @@ for filename in sorted(os.listdir(folder_path), key=numerical_sort):
                 encoded_1d = encoded.view(-1)
                 encoded_1d_list = encoded_1d.numpy().tolist()
                 encoder_output.append(encoded_1d_list)
+                print(f'Calculating encoder values on image number: {cur_image_iterate}/{image_iterate}')
+                cur_image_iterate += 1
+
+# save encoder output as pickle file so we do not need to the above operation every time
+file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
+# Serialize and save the data to the file
+with open(file_encoder_path, 'wb') as file:
+    pickle.dump(encoder_output, file)
+print("Encoder output saved to", file_encoder_path)
 
 # add the encoder output to the Kalman filter states for input to the GRU
 for i in range(len(state_KF_init)):
     state_KF_init[i].extend(encoder_output[i])
 
-
 # reshape data to have sequences of length sequence_length
-#state_KF = [state_KF_init[i:i+sequence_length] for i in range(len(state_KF_init)-sequence_length+1)]
-#state_VICON = [state_VICON[i+sequence_length-1] for i in range(len(state_KF))]
 state_KF = []
-state_IMU = []
 for i in range(len(state_KF_init) - sequence_length + 1):
     state_KF.append(state_KF_init[i:i + sequence_length])
 
@@ -116,29 +145,29 @@ for i in range(num_models):
     random.seed(seed)
 
     # TODO: BELOW IS RANDOM SPLIT
-    #train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train, num_test])
+    train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train, num_test])
     #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     # TODO: BELOW IS NO RANDOM SPLIT
     # specify the training and testing percentages
-    testing_percentage = 1 - training_percentage
+    #testing_percentage = 1 - training_percentage
 
     # calculate the number of samples for training and testing
-    num_samples = len(dataset)
-    num_train = int(training_percentage * num_samples)
-    num_test = num_samples - num_train
+    #num_samples = len(dataset)
+    #num_train = int(training_percentage * num_samples)
+    #num_test = num_samples - num_train
 
     # create indices for training and testing samples
-    train_indices = list(range(num_train))
-    test_indices = list(range(num_train, num_samples))
+    #train_indices = list(range(num_train))
+    #test_indices = list(range(num_train, num_samples))
 
     # create Subset objects using the indices
-    train_dataset = torch.utils.data.Subset(dataset, train_indices)
-    test_dataset = torch.utils.data.Subset(dataset, test_indices)
+    #train_dataset = torch.utils.data.Subset(dataset, train_indices)
+    #test_dataset = torch.utils.data.Subset(dataset, test_indices)
 
     # create DataLoader objects for training and testing
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+    #train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
     model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
     criterion = nn.MSELoss()
@@ -165,7 +194,7 @@ for i in range(num_models):
 
             # Print progress every 1000 iterations
             #if (i + 1) % 10 == 0:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Step [{i + 1}/{len(train_loader)}], Loss: {loss.item():.16f}')
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.16f}')
 
     # save your model
     torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}.pth')

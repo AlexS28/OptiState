@@ -61,7 +61,7 @@ class Kalman_Filter:
         # model state
         self.x_model = INITIAL_PARAMS.STARTING_STATE
 
-        Q = np.array([100.0, 100.0, 100.0, 0.0, 0.0, 100.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+        Q = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 1.0, 1.0, 1.0, 100.0, 100.0, 100.0])
         Q = np.diag(Q)
         R_VALUE = 0.00001
         R = np.array(
@@ -148,7 +148,7 @@ class Kalman_Filter:
         self.stance_controller.opti.set_value(self.stance_controller.contact_mpc, self.contact_mpc)
         sol = self.stance_controller.opti.solve()
         # retrieve desired reaction forces (control output of the MPC)
-        f = sol.value(self.stance_controller.controls)
+        self.f = sol.value(self.stance_controller.controls)
 
         R = self.rotation_matrix_body_world(self.x[0], self.x[1], self.x[2])
         self.F[0:3, 6:9] = np.transpose(R)
@@ -158,7 +158,7 @@ class Kalman_Filter:
 
         self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
 
-        self.x = next_state(self.x, p, f[:,0].reshape(12,1), self.dt)
+        self.x = next_state(self.x, p, self.f[:,0].reshape(12,1), self.dt)
         self.x_model = copy.deepcopy(self.x)
         self.P_trace = copy.deepcopy(np.trace(self.P))
 
