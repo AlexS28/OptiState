@@ -12,6 +12,7 @@ import torch.nn as nn
 import shutil
 # specify the dataset number to test on
 dataset_test_number = [1,2,3]
+
 hidden_size_2 = 128+64
 num_layers_2 = 4
 
@@ -99,6 +100,7 @@ for i in range(len(state_KF_init) - sequence_length + 1):
     state_KF.append(state_KF_init[i:i + sequence_length])
 
 state_VICON = []
+
 for i in range(len(state_KF)):
     state_VICON.append(state_VICON_init[i + sequence_length - 1])
 
