@@ -9,10 +9,11 @@ from PIL import Image
 from transformer.transformer_model import Transformer_Autoencoder
 from torchvision import transforms
 import torch.nn as nn
+from scipy import io
 import shutil
 
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6]
+dataset_train_number = [1,2,3,4,5,6,7]
 # Train GRU2
 training_percentage_2 = 1.0
 batch_size_2 = 64
@@ -201,3 +202,10 @@ plt.title('Loss on training set: State')
 plt.xlabel('Data points')
 plt.ylabel('Loss')
 plt.show()
+
+dataset_save = {
+    'loss': loss_list_training,
+}
+mat_file_path = dir_path + '/OptiState/data_results/gru_2_loss_results.mat'
+# Save the datasets to the .mat file
+io.savemat(mat_file_path, dataset_save)

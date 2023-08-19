@@ -10,8 +10,9 @@ from transformer.transformer_model import Transformer_Autoencoder
 from torchvision import transforms
 import torch.nn as nn
 import shutil
+from scipy import io
 # specify the dataset number to test on
-dataset_test_number = [1,2,3]
+dataset_test_number = [7]
 
 hidden_size_2 = 128+64
 num_layers_2 = 4
@@ -28,6 +29,18 @@ dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 with open(dir_path+'/OptiState/data_collection/trajectories/rnn_data.pkl', 'rb') as f:
     data_collection = pickle.load(f)
+
+# Specify the file path to save the pickle file
+pickle_file_path =  dir_path + '/OptiState/data_collection/trajectories/scaling_params.pkl'
+# Load the dictionary from the pickle file
+with open(pickle_file_path, 'rb') as pickle_file:
+    loaded_scaling_params = pickle.load(pickle_file)
+
+# Extract min_vals and max_vals from the loaded dictionary
+min_vals = loaded_scaling_params['min_vals_KF']
+max_vals = loaded_scaling_params['max_vals_KF']
+min_vals_VIC = loaded_scaling_params['min_vals_VIC']
+max_vals_VIC = loaded_scaling_params['max_vals_VIC']
 
 
 # Define the transformation to apply to the image
@@ -72,6 +85,26 @@ load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
 model = Transformer_Autoencoder()
 model.load_state_dict(torch.load(load_model_name))
 model.eval()
+
+
+# Convert your list of lists to a numpy array for easier processing
+state_KF_init_array = np.array(state_KF_init)
+# Perform Min-Max scaling for each component
+normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_vals)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_KF_init = normalized_state_KF_init.tolist()
+
+# Convert your list of lists to a numpy array for easier processing
+state_VICON_init_array = np.array(state_VICON_init)
+# Perform Min-Max scaling for each component
+normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_vals_VIC - min_vals_VIC)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_VICON_init = normalized_state_VICON_init.tolist()
+
 
 # load the autoencoder and output encoder values
 encoder_output = []
@@ -142,20 +175,26 @@ with torch.no_grad():
 preds = np.array(preds)
 ground_truth = np.array(ground_truth)
 
+
 # Reshape predicted and ground truth arrays to have the same shape
 preds = preds.reshape(-1, num_outputs)
 ground_truth = ground_truth.reshape(-1, num_outputs)
 input_KF = np.array(state_KF_init)
+
+preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
+ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
+input_KF = input_KF[:,0:30].reshape(input_KF.shape[0],30) * (max_vals - min_vals) + min_vals
+
 from scipy.signal import butter, lfilter
 # Moving average window size
 #window_size = 10  # Adjust this according to your needs
-window_size_GRU = 5
+window_size_GRU = 1
 # Apply the moving average filter to all components of the data
 filtered_preds = np.zeros_like(preds)
 for i in range(preds.shape[1]):
     preds[:, i] = np.convolve(preds[:, i], np.ones(window_size_GRU) / window_size_GRU, mode='same')
-#    ground_truth[:, i] = np.convolve(ground_truth[:, i], np.ones(window_size) / window_size, mode='same')
-#    input_KF[:, i] = np.convolve(input_KF[:, i], np.ones(window_size) / window_size, mode='same')
+    #ground_truth[:, i] = np.convolve(ground_truth[:, i], np.ones(200) / 200, mode='same')
+    #input_KF[:, i] = np.convolve(input_KF[:, i], np.ones(100) / 100, mode='same')
 
 output_error = []
 for i in range(preds.shape[0]):
@@ -312,3 +351,14 @@ plt.plot(input_KF[:, 11], label="Kalman Filter")
 plt.title('dz')
 plt.legend(['dz GRU','dz Vicon','dz Kalman Filter'])
 plt.show()
+
+dataset_save = {
+    'gru': preds,
+    'gru_error': error_GRU,
+    'kalman': input_KF,
+    'mocap': ground_truth
+}
+
+mat_file_path = dir_path + '/OptiState/data_results/test_results_flat.mat'
+# Save the datasets to the .mat file
+io.savemat(mat_file_path, dataset_save)

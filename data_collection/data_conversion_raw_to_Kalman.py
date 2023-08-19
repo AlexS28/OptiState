@@ -192,7 +192,6 @@ for file_name in file_list:
             moving_average_dthx.append(cur_dthx)
             moving_average_dthy.append(cur_dthy)
             moving_average_dthz.append(cur_dthz)
-
             moving_average_thx.append(cur_euler_t1[0][0])
             moving_average_thy.append(cur_euler_t1[1][0])
             moving_average_thz.append(cur_euler_t1[2][0])

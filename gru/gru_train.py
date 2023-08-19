@@ -10,9 +10,10 @@ from torchvision import transforms
 from PIL import Image
 from transformer.transformer_model import Transformer_Autoencoder
 import shutil
+from scipy import io
 
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6,7]
+dataset_train_number = [1,2,3,4,5,6]
 # specify number of models to train
 num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
@@ -23,7 +24,7 @@ input_size = 30+128
 sequence_length = 10
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 1000
+num_epochs = 100
 batch_size = 64
 learning_rate = 0.000001
 
@@ -63,6 +64,49 @@ for i in range(len(dataset_train_number)):
         shutil.copyfile(source_path, destination_path)
         image_iterate+=1
 
+
+# Convert your list of lists to a numpy array for easier processing
+state_KF_init_array = np.array(state_KF_init)
+# Calculate the minimum and maximum values for each component
+min_vals = np.min(state_KF_init_array, axis=0)
+max_vals = np.max(state_KF_init_array, axis=0)
+# Perform Min-Max scaling for each component
+normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_vals)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_KF_init = normalized_state_KF_init.tolist()
+
+# Convert your list of lists to a numpy array for easier processing
+state_VICON_init_array = np.array(state_VICON_init)
+# Calculate the minimum and maximum values for each component
+min_vals_VIC = np.min(state_VICON_init_array, axis=0)
+max_vals_VIC = np.max(state_VICON_init_array, axis=0)
+# Perform Min-Max scaling for each component
+normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_vals_VIC - min_vals_VIC)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_VICON_init = normalized_state_VICON_init.tolist()
+
+
+# Combine min_vals and max_vals into a dictionary
+scaling_params = {
+    'min_vals_KF': min_vals,
+    'max_vals_KF': max_vals,
+    'min_vals_VIC': min_vals_VIC,
+    'max_vals_VIC': max_vals_VIC,
+
+}
+
+# Specify the file path to save the pickle file
+pickle_file_path = dir_path  + '/OptiState/data_collection/trajectories/scaling_params.pkl'
+
+# Save the dictionary as a pickle file
+with open(pickle_file_path, 'wb') as pickle_file:
+    pickle.dump(scaling_params, pickle_file)
+
+print("Scaling parameters saved as a pickle file:", pickle_file_path)
 
 # Define the transformation to apply to the image
 transform = transforms.Compose([
@@ -207,3 +251,10 @@ plt.title('Loss on training set: State')
 plt.xlabel('Data points')
 plt.ylabel('Loss')
 plt.show()
+
+dataset_save = {
+    'loss': loss_list_training,
+}
+mat_file_path = dir_path + '/OptiState/data_results/gru_1_loss_results.mat'
+# Save the datasets to the .mat file
+io.savemat(mat_file_path, dataset_save)
