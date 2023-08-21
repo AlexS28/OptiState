@@ -13,19 +13,19 @@ from scipy import io
 import shutil
 
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6,7]
+dataset_train_number = [1]
 # Train GRU2
 training_percentage_2 = 1.0
 batch_size_2 = 64
-num_epochs_2 = 100
-learning_rate_2 = 0.00001
+num_epochs_2 = 2000
+learning_rate_2 = 0.0001
 hidden_size_2 = 128+64
 num_layers_2 = 4
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 12
 input_size = 30+128
-sequence_length = 10
+sequence_length = 5
 hidden_size = 128+64
 num_layers = 4
 print("EVALUATING THE FIRST GRU, PLEASE WAIT...")
@@ -53,18 +53,50 @@ import re
 state_KF_init = []
 state_VICON_init = []
 
+
 image_iterate = 1
 for i in range(len(dataset_train_number)):
     cur_dataset = dataset_train_number[i]
     state_KF_init.extend(data_collection[cur_dataset]['state_INPUT'])
     state_VICON_init.extend(data_collection[cur_dataset]['state_MOCAP'])
 
+# Specify the file path to save the pickle file
+pickle_file_path =  dir_path + '/OptiState/data_collection/trajectories/scaling_params.pkl'
+# Load the dictionary from the pickle file
+with open(pickle_file_path, 'rb') as pickle_file:
+    loaded_scaling_params = pickle.load(pickle_file)
+
+# Extract min_vals and max_vals from the loaded dictionary
+min_vals = loaded_scaling_params['min_vals_KF']
+max_vals = loaded_scaling_params['max_vals_KF']
+min_vals_VIC = loaded_scaling_params['min_vals_VIC']
+max_vals_VIC = loaded_scaling_params['max_vals_VIC']
+
+# Convert your list of lists to a numpy array for easier processing
+state_KF_init_array = np.array(state_KF_init)
+# Perform Min-Max scaling for each component
+normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_vals)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_KF_init = normalized_state_KF_init.tolist()
+
+# Convert your list of lists to a numpy array for easier processing
+state_VICON_init_array = np.array(state_VICON_init)
+# Perform Min-Max scaling for each component
+normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_vals_VIC - min_vals_VIC)
+# The 'normalized_state_KF_init' array now contains the normalized values
+# Each row corresponds to a list in the original 'state_KF_init'
+# If you want to convert the normalized numpy array back to a list of lists
+state_VICON_init = normalized_state_VICON_init.tolist()
+
+
 load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
 model = Transformer_Autoencoder()
 model.load_state_dict(torch.load(load_model_name))
 model.eval()
 
-file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"  # Replace with the actual file path
+file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
 # Load the data from the pickle file
 with open(file_encoder_path, 'rb') as file:
     encoder_output = pickle.load(file)
@@ -130,19 +162,20 @@ input_KF = np.array(state_KF_init)
 
 output_error = []
 for i in range(preds.shape[0]):
-    thx_error = (preds[i, 0] - ground_truth[i, 0])
-    thy_error = (preds[i, 1] - ground_truth[i, 1])
-    thz_error = (preds[i, 2] - ground_truth[i, 2])
-    x_error = (preds[i, 3] - ground_truth[i, 3])
-    y_error = (preds[i, 4] - ground_truth[i, 4])
-    z_error = (preds[i, 5] - ground_truth[i, 5])
-    dthx_error = (preds[i, 6] - ground_truth[i, 6])
-    dthy_error = (preds[i, 7] - ground_truth[i, 7])
-    dthz_error = (preds[i, 8] - ground_truth[i, 8])
-    dx_error = (preds[i, 9] - ground_truth[i, 9])
-    dy_error = (preds[i, 10] - ground_truth[i, 10])
-    dz_error = (preds[i, 11] - ground_truth[i, 11])
+    thx_error = preds[i, 0] - ground_truth[i, 0]
+    thy_error = preds[i, 1] - ground_truth[i, 1]
+    thz_error = preds[i, 2] - ground_truth[i, 2]
+    x_error = preds[i, 3] - ground_truth[i, 3]
+    y_error = preds[i, 4] - ground_truth[i, 4]
+    z_error = preds[i, 5] - ground_truth[i, 5]
+    dthx_error = preds[i, 6] - ground_truth[i, 6]
+    dthy_error = preds[i, 7] - ground_truth[i, 7]
+    dthz_error = preds[i, 8] - ground_truth[i, 8]
+    dx_error = preds[i, 9] - ground_truth[i, 9]
+    dy_error = preds[i, 10] - ground_truth[i, 10]
+    dz_error = preds[i, 11] - ground_truth[i, 11]
     output_error.append([thx_error, thy_error, thz_error, x_error, y_error, z_error, dthx_error, dthy_error, dthz_error, dx_error, dy_error, dz_error])
+
 
 state_KF_2 = []
 state_KF_init_2 = state_KF_init[:preds.shape[0]]
@@ -169,9 +202,9 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train,
 
 # create DataLoader objects for training and testing
 train_loader = DataLoader(train_dataset, batch_size=batch_size_2, shuffle=True)
-model = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device).to(device)
+model = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device, use_sigmoid=False).to(device)
 criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_2, weight_decay=1e-5)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_2)
 
 train_loss = []
 test_loss = []

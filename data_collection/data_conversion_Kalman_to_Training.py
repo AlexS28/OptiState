@@ -171,9 +171,23 @@ for k in range(len(data_collection)):
     dthy_mocap = []
     dthz_mocap = []
 
+    thx_t265 = []
+    thy_t265 = []
+    thz_t265 = []
+    rx_t265 = []
+    ry_t265 = []
+    rz_t265 = []
+    drx_t265 = []
+    dry_t265 = []
+    drz_t265 = []
+    dthx_t265 = []
+    dthy_t265 = []
+    dthz_t265 = []
+
 
     state_INPUT = []
     state_MOCAP = []
+    state_T265 = []
     p_trace = []
     for i in range(traj_length):
         p = p_list_est[i].reshape(12,1)
@@ -183,6 +197,7 @@ for k in range(len(data_collection)):
         x_ref = mocap_list[i].reshape(12, 1)
         x = KF2.estimate_state_mpc(imu,p,dp,x_ref,contact_ref)
         p_trace.append(KF2.P_trace)
+
 
         if i == 0:
             moving_average_dthx = [x[6][0]] * filter_horizon
@@ -249,6 +264,19 @@ for k in range(len(data_collection)):
         drx_mocap.append(ground_truth[9][0])
         dry_mocap.append(ground_truth[10][0])
         drz_mocap.append(ground_truth[11][0])
+        t265 = t265_list[i]
+        thx_t265.append(t265[0][0])
+        thy_t265.append(t265[1][0])
+        thz_t265.append(t265[2][0])
+        rx_t265.append(t265[3][0])
+        ry_t265.append(t265[4][0])
+        rz_t265.append(t265[5][0])
+        dthx_t265.append(t265[6][0])
+        dthy_t265.append(t265[7][0])
+        dthz_t265.append(t265[8][0])
+        drx_t265.append(t265[9][0])
+        dry_t265.append(t265[10][0])
+        drz_t265.append(t265[11][0])
 
         state_INPUT.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0],
                             imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0], imu_list[i][10][0], imu_list[i][11][0],
@@ -256,34 +284,41 @@ for k in range(len(data_collection)):
                             KF2.f[6,0], KF2.f[7,0], KF2.f[8,0], KF2.f[9,0], KF2.f[10,0], KF2.f[11,0]])
 
         state_MOCAP.append([thx_mocap[i],thy_mocap[i],thz_mocap[i],rx_mocap[i],ry_mocap[i],rz_mocap[i],dthx_mocap[i],dthy_mocap[i],dthz_mocap[i],drx_mocap[i],dry_mocap[i],drz_mocap[i]])
+        state_T265.append([thx_t265[i],thy_t265[i],thz_t265[i],rx_t265[i],ry_t265[i],rz_t265[i],dthx_t265[i],dthy_t265[i],dthz_t265[i],drx_t265[i],dry_t265[i],drz_t265[i]])
 
 
     plt.figure(1)
     plt.plot(time,dthx_est)
     plt.plot(time,dthx_mocap)
-    plt.legend(['est','vicon'])
+    plt.plot(time,dthx_t265)
+    plt.legend(['est','vicon', 't265'])
     plt.title('thx')
 
     plt.figure(2)
     plt.plot(time,dthy_est)
     plt.plot(time,dthy_mocap)
-    plt.legend(['est','vicon'])
+    plt.plot(time,dthy_t265)
+    plt.legend(['est','vicon', 't265'])
     plt.title('thy')
 
     plt.figure(3)
     plt.plot(time,dthz_est)
     plt.plot(time,dthz_mocap)
-    plt.legend(['est','vicon'])
+    plt.plot(time, dthz_t265)
+    plt.legend(['est','vicon', 't265'])
     plt.title('thz')
 
     plt.figure(4)
     plt.plot(time,rx_est)
     plt.plot(time,rx_mocap)
+    plt.plot(time, rx_t265)
     plt.plot(time,ry_est)
     plt.plot(time,ry_mocap)
+    plt.plot(time, ry_t265)
     plt.plot(time,rz_est)
     plt.plot(time,rz_mocap)
-    plt.legend(['est x','vicon x', 'est y','vicon y', 'est z','vicon z'])
+    plt.plot(time, rz_t265)
+    plt.legend(['est x','vicon x','t265 x', 'est y','vicon y', 't265 y','est z','vicon z','t265 z'])
     plt.title('position')
 
     plt.figure(5)
@@ -303,7 +338,7 @@ for k in range(len(data_collection)):
 
     # save the Kalman filter estimates to the
     # save data in pickle file
-    data_collection_dict.update({k+1: {'state_INPUT': state_INPUT, 'state_MOCAP': state_MOCAP}})
+    data_collection_dict.update({k+1: {'state_INPUT': state_INPUT, 'state_MOCAP': state_MOCAP, 'state_T265': state_T265}})
 
     with open(dir_path+'/data_collection/trajectories/rnn_data.pkl', 'wb') as f:
         pickle.dump(data_collection_dict, f)

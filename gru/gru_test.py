@@ -12,7 +12,7 @@ import torch.nn as nn
 import shutil
 from scipy import io
 # specify the dataset number to test on
-dataset_test_number = [7]
+dataset_test_number = [1]
 
 hidden_size_2 = 128+64
 num_layers_2 = 4
@@ -20,7 +20,7 @@ num_layers_2 = 4
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 12
 input_size = 30+128
-sequence_length = 10
+sequence_length = 5
 hidden_size = 128+64
 num_layers = 4
 
@@ -61,6 +61,7 @@ import re
 # get data from dictionary
 state_KF_init = []
 state_VICON_init = []
+state_t265_init = []
 images_folder_test = dir_path + '/OptiState/data_collection/trajectories/saved_images/saved_images_traj_test'
 if not os.path.exists(images_folder_test):
     os.makedirs(images_folder_test)
@@ -70,6 +71,7 @@ for i in range(len(dataset_test_number)):
     cur_dataset = dataset_test_number[i]
     state_KF_init.extend(data_collection[cur_dataset]['state_INPUT'])
     state_VICON_init.extend(data_collection[cur_dataset]['state_MOCAP'])
+    state_t265_init.extend(data_collection[cur_dataset]['state_T265'])
 
     cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
     image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
@@ -175,41 +177,25 @@ with torch.no_grad():
 preds = np.array(preds)
 ground_truth = np.array(ground_truth)
 
-
 # Reshape predicted and ground truth arrays to have the same shape
 preds = preds.reshape(-1, num_outputs)
 ground_truth = ground_truth.reshape(-1, num_outputs)
 input_KF = np.array(state_KF_init)
 
-preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
-ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
-input_KF = input_KF[:,0:30].reshape(input_KF.shape[0],30) * (max_vals - min_vals) + min_vals
-
-from scipy.signal import butter, lfilter
-# Moving average window size
-#window_size = 10  # Adjust this according to your needs
-window_size_GRU = 1
-# Apply the moving average filter to all components of the data
-filtered_preds = np.zeros_like(preds)
-for i in range(preds.shape[1]):
-    preds[:, i] = np.convolve(preds[:, i], np.ones(window_size_GRU) / window_size_GRU, mode='same')
-    #ground_truth[:, i] = np.convolve(ground_truth[:, i], np.ones(200) / 200, mode='same')
-    #input_KF[:, i] = np.convolve(input_KF[:, i], np.ones(100) / 100, mode='same')
-
 output_error = []
 for i in range(preds.shape[0]):
-    thx_error = (preds[i, 0] - ground_truth[i, 0])
-    thy_error = (preds[i, 1] - ground_truth[i, 1])
-    thz_error = (preds[i, 2] - ground_truth[i, 2])
-    x_error = (preds[i, 3] - ground_truth[i, 3])
-    y_error = (preds[i, 4] - ground_truth[i, 4])
-    z_error = (preds[i, 5] - ground_truth[i, 5])
-    dthx_error = (preds[i, 6] - ground_truth[i, 6])
-    dthy_error = (preds[i, 7] - ground_truth[i, 7])
-    dthz_error = (preds[i, 8] - ground_truth[i, 8])
-    dx_error = (preds[i, 9] - ground_truth[i, 9])
-    dy_error = (preds[i, 10] - ground_truth[i, 10])
-    dz_error = (preds[i, 11] - ground_truth[i, 11])
+    thx_error = preds[i, 0] - ground_truth[i, 0]
+    thy_error = preds[i, 1] - ground_truth[i, 1]
+    thz_error = preds[i, 2] - ground_truth[i, 2]
+    x_error = preds[i, 3] - ground_truth[i, 3]
+    y_error = preds[i, 4] - ground_truth[i, 4]
+    z_error = preds[i, 5] - ground_truth[i, 5]
+    dthx_error = preds[i, 6] - ground_truth[i, 6]
+    dthy_error = preds[i, 7] - ground_truth[i, 7]
+    dthz_error = preds[i, 8] - ground_truth[i, 8]
+    dx_error = preds[i, 9] - ground_truth[i, 9]
+    dy_error = preds[i, 10] - ground_truth[i, 10]
+    dz_error = preds[i, 11] - ground_truth[i, 11]
     output_error.append([thx_error, thy_error, thz_error, x_error, y_error, z_error, dthx_error, dthy_error, dthz_error, dx_error, dy_error, dz_error])
 
 state_KF_2 = []
@@ -231,7 +217,7 @@ dataset = TensorDataset(state_KF_tensor, state_output_error_tensor)
 # Create DataLoader object for entire dataset
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
-model2 = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device).to(device)
+model2 = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device, use_sigmoid=False).to(device)
 # load your saved model
 model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error.pth'))
 # Put model in eval mode
@@ -252,16 +238,42 @@ with torch.no_grad():
 error_GRU = np.array(error_GRU)
 error_GRU = error_GRU.reshape(-1, num_outputs)
 
+#for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
+#    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
+
+preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
+ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
+
+input_KF = input_KF[:,0:30].reshape(input_KF.shape[0],30) * (max_vals - min_vals) + min_vals
+state_t265 = []
+for i in range(sequence_length-1,len(state_t265_init)):
+    state_t265.append(state_t265_init[i])
+
+state_t265 = np.array(state_t265)
+
+from scipy.signal import butter, lfilter
+# Moving average window size
+#window_size = 10  # Adjust this according to your needs
+window_size_GRU = 1
+# Apply the moving average filter to all components of the data
+filtered_preds = np.zeros_like(preds)
+for i in range(preds.shape[1]):
+    preds[:, i] = np.convolve(preds[:, i], np.ones(window_size_GRU) / window_size_GRU, mode='same')
+    #ground_truth[:, i] = np.convolve(ground_truth[:, i], np.ones(200) / 200, mode='same')
+    #input_KF[:, i] = np.convolve(input_KF[:, i], np.ones(100) / 100, mode='same')
+
+
 end_plot = error_GRU.shape[0]
 
 # Plot predicted, ground truth, and input or Kalman filter output
 plt.figure(1)
 plt.plot(preds[:end_plot, 0], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 0] - error_GRU[:end_plot,0], preds[:end_plot, 0] + error_GRU[:end_plot,0], alpha=0.3)
-plt.plot(ground_truth[:end_plot, 0], label="Vicon")
-plt.plot(input_KF[:end_plot, 0], label="Kalman Filter")
+plt.plot(ground_truth[:, 0], label="Vicon")
+plt.plot(input_KF[:, 0], label="Kalman Filter")
+plt.plot(state_t265[:,0], label='Baseline')
 plt.title('theta x')
-plt.legend(['thx GRU','thx Vicon','thx Kalman Filter'])
+plt.legend(['thx GRU','thx Vicon','thx Kalman Filter','Baseline'])
 
 plt.figure(2)
 plt.plot(preds[:, 1], label="GRU")
@@ -284,16 +296,18 @@ plt.plot(preds[:, 3], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 3] - error_GRU[:end_plot,3], preds[:end_plot, 3] + error_GRU[:end_plot,3], alpha=0.3)
 plt.plot(ground_truth[:, 3], label="Vicon")
 plt.plot(input_KF[:, 3], label="Kalman Filter")
+plt.plot(state_t265[:,3], label='Baseline')
 plt.title('x')
-plt.legend(['x GRU', 'x Vicon','x Kalman Filter'])
+plt.legend(['x GRU', 'x Vicon','x Kalman Filter','Baseline'])
 
 plt.figure(5)
 plt.plot(preds[:, 4], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 4] - error_GRU[:end_plot, 4], preds[:end_plot, 4] + error_GRU[:end_plot,4], alpha=0.3)
 plt.plot(ground_truth[:, 4], label="Vicon")
 plt.plot(input_KF[:, 4], label="Kalman Filter")
+plt.plot(state_t265[:,4], label='Baseline')
 plt.title('y')
-plt.legend(['y GRU','y Vicon','y Kalman Filter'])
+plt.legend(['y GRU','y Vicon','y Kalman Filter','y Baseline'])
 
 plt.figure(6)
 plt.plot(preds[:, 5], label="GRU")
@@ -356,7 +370,8 @@ dataset_save = {
     'gru': preds,
     'gru_error': error_GRU,
     'kalman': input_KF,
-    'mocap': ground_truth
+    'mocap': ground_truth,
+    't265': state_t265
 }
 
 mat_file_path = dir_path + '/OptiState/data_results/test_results_flat.mat'

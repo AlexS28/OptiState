@@ -13,7 +13,7 @@ import shutil
 from scipy import io
 
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6]
+dataset_train_number = [1]
 # specify number of models to train
 num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
@@ -21,12 +21,12 @@ training_percentage = 0.8
 # Hyper-parameters for state estimate
 num_outputs = 12
 input_size = 30+128
-sequence_length = 10
+sequence_length = 5
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 100
+num_epochs = 1000
 batch_size = 64
-learning_rate = 0.000001
+learning_rate = 0.00001
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
@@ -76,7 +76,6 @@ normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_va
 # Each row corresponds to a list in the original 'state_KF_init'
 # If you want to convert the normalized numpy array back to a list of lists
 state_KF_init = normalized_state_KF_init.tolist()
-
 # Convert your list of lists to a numpy array for easier processing
 state_VICON_init_array = np.array(state_VICON_init)
 # Calculate the minimum and maximum values for each component
@@ -89,14 +88,12 @@ normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_val
 # If you want to convert the normalized numpy array back to a list of lists
 state_VICON_init = normalized_state_VICON_init.tolist()
 
-
 # Combine min_vals and max_vals into a dictionary
 scaling_params = {
     'min_vals_KF': min_vals,
     'max_vals_KF': max_vals,
     'min_vals_VIC': min_vals_VIC,
     'max_vals_VIC': max_vals_VIC,
-
 }
 
 # Specify the file path to save the pickle file
@@ -215,7 +212,7 @@ for i in range(num_models):
 
     model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
     criterion = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     train_loss = []
     test_loss = []
