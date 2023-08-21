@@ -238,8 +238,8 @@ with torch.no_grad():
 error_GRU = np.array(error_GRU)
 error_GRU = error_GRU.reshape(-1, num_outputs)
 
-#for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
-#    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
+for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
+    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
 
 preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
 ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
@@ -280,16 +280,18 @@ plt.plot(preds[:, 1], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 1] - error_GRU[:end_plot,1], preds[:end_plot, 1] + error_GRU[:end_plot,1], alpha=0.3)
 plt.plot(ground_truth[:, 1], label="Vicon")
 plt.plot(input_KF[:, 1], label="Kalman Filter")
+plt.plot(state_t265[:,1], label='Baseline')
 plt.title('theta y')
-plt.legend(['thy GRU','thy Vicon','thy Kalman Filter'])
+plt.legend(['thy GRU','thy Vicon','thy Kalman Filter','Basline'])
 
 plt.figure(3)
 plt.plot(preds[:, 2], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 2] - error_GRU[:end_plot,2], preds[:end_plot, 2] + error_GRU[:end_plot,2], alpha=0.3)
 plt.plot(ground_truth[:, 2], label="Vicon")
 plt.plot(input_KF[:, 2], label="Kalman Filter")
+plt.plot(state_t265[:,2], label='Baseline')
 plt.title('theta z')
-plt.legend(['thz GRU','thz Vicon','thz Kalman Filter'])
+plt.legend(['thz GRU','thz Vicon','thz Kalman Filter','Basline'])
 
 plt.figure(4)
 plt.plot(preds[:, 3], label="GRU")
@@ -354,8 +356,10 @@ plt.plot(preds[:, 10], label="GRU")
 plt.fill_between(range(end_plot), preds[:end_plot, 10] - error_GRU[:end_plot, 10], preds[:end_plot, 10] + error_GRU[:end_plot,10], alpha=0.3)
 plt.plot(ground_truth[:, 10], label="Vicon")
 plt.plot(input_KF[:, 10], label="Kalman Filter")
+plt.plot(state_t265[:,10], label='Baseline')
+
 plt.title('dy')
-plt.legend(['dy GRU','dy Vicon','dy Kalman Filter'])
+plt.legend(['dy GRU','dy Vicon','dy Kalman Filter','Baseline'])
 
 plt.figure(12)
 plt.plot(preds[:, 11], label="GRU")
