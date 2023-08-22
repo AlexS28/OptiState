@@ -238,8 +238,8 @@ with torch.no_grad():
 error_GRU = np.array(error_GRU)
 error_GRU = error_GRU.reshape(-1, num_outputs)
 
-for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
-    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
+#for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
+#    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
 
 preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
 ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
@@ -377,6 +377,30 @@ dataset_save = {
     'mocap': ground_truth,
     't265': state_t265
 }
+
+# Assuming you have two datasets as NumPy arrays: 'predictions' and 'ground_truth'
+# Each dataset has a shape of (4440, 12)
+
+# Calculate absolute errors for each component
+absolute_errors = np.abs(preds[:end_plot,0:12] - ground_truth[:end_plot,0:12])
+# Calculate the mean absolute error (MAE) for each column
+mae_gru = np.mean(absolute_errors, axis=0)
+# Print or use the mae and rmse arrays
+print("Mean Absolute Error for each column (GRU):", mae_gru)
+
+# Calculate absolute errors for each component
+absolute_errors = np.abs(input_KF[:end_plot,0:12] - ground_truth[:end_plot,0:12])
+# Calculate the mean absolute error (MAE) for each column
+mae_KF = np.mean(absolute_errors, axis=0)
+# Print or use the mae and rmse arrays
+print("Mean Absolute Error for each column (KF):", mae_KF)
+
+# Calculate absolute errors for each component
+absolute_errors = np.abs(state_t265[:end_plot,0:12] - ground_truth[:end_plot,0:12])
+# Calculate the mean absolute error (MAE) for each column
+mae_t265 = np.mean(absolute_errors, axis=0)
+# Print or use the mae and rmse arrays
+print("Mean Absolute Error for each column (t265):", mae_t265)
 
 mat_file_path = dir_path + '/OptiState/data_results/test_results_flat.mat'
 # Save the datasets to the .mat file

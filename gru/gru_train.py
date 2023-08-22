@@ -26,7 +26,7 @@ hidden_size = 128+64
 num_layers = 4
 num_epochs = 1000
 batch_size = 64
-learning_rate = 0.00001
+learning_rate = 0.0001
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration

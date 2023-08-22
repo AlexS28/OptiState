@@ -13,7 +13,7 @@ from scipy import io
 import shutil
 
 # specify the dataset number to train on
-dataset_train_number = [1]
+dataset_train_number = [1,2,3,4,5,6,7]
 # Train GRU2
 training_percentage_2 = 1.0
 batch_size_2 = 64

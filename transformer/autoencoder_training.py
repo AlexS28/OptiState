@@ -7,7 +7,7 @@ def get_args_parser():
     parser.add_argument('-lr', default=4e-4, type=float, help='initial learning rate')
     parser.add_argument('-weight_decay', default=0.1, type=float, help='weight decay for training')
     parser.add_argument('-batch_size', default=64, type=int, help='batch size for training')
-    parser.add_argument('-num_epochs', default=1000, type=int, help='number of epochs for training')
+    parser.add_argument('-num_epochs', default=4000, type=int, help='number of epochs for training')
     parser.add_argument('-load_model_name', default=None , help='name of the model to load before training')
     parser.add_argument('-save_model_name', default=None , help='name of the model to save after training')
     parser.add_argument('-training_log_save', default='transformer_log', help='save name for loss log of training')
