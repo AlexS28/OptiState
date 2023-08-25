@@ -43,35 +43,21 @@ for k in range(len(data_collection)):
     x_start = mocap_list[0]
     KF.x[:] = x_start
 
-    Q00 = []
-    Q11 = []
-    Q22 = []
-    Q33 = []
-    Q44 = []
-    Q55 = []
-    Q66 = []
-    Q77 = []
-    Q88 = []
-    Q99 = []
-    Q1010 = []
-    Q1111 = []
 
-    R00 = []
-    R11 = []
-    R22 = []
-    R33 = []
-    R44 = []
-    R55 = []
-    R66 = []
-    R77 = []
-    R88 = []
-    R99 = []
-    R1010 = []
+    model_data = []
+    ground_truth_data = []
+    measurement_data = []
 
     time = []
     time.append(0)
 
-    for i in range(traj_length):
+    for i in range(traj_length-1):
+        # ground truth data from mocap
+        ground_truth = mocap_list[i]
+        ground_truth_t1 = mocap_list[i+1]
+
+        # initiate the x for propagating the model
+        KF.x = ground_truth.reshape(12,1)
         p = p_list_est[i].reshape(12,1)
         x_ref = mocap_list[i].reshape(12,1)
         contact_ref = contact_list[i].reshape(4,1)
@@ -79,70 +65,55 @@ for k in range(len(data_collection)):
             time.append(time[-1]+time_list[i+1]-time_list[i])
         KF.predict_mpc(p,x_ref,contact_ref)
 
-        p_cur = p_list_est[i]
-        dp_cur = dp_list[i]
-        imu = imu_list[i][0:6]
+        contact_ref = contact_list[i+1].reshape(4, 1)
+        p_cur = p_list_est[i+1]
+        dp_cur = dp_list[i+1]
+        imu = imu_list[i+1][0:6]
         odom = KF.get_odom(p_cur,dp_cur,contact_ref,imu)
         KF.set_measurements(imu, odom)
 
-        # ground truth data from mocap
-        ground_truth = mocap_list[i]
 
-        # calculate the variances
-        Q00.append((KF.x_model[0][0] - ground_truth[0][0]) ** 2)
-        Q11.append((KF.x_model[1][0] - ground_truth[1][0]) ** 2)
-        Q22.append((KF.x_model[2][0] - ground_truth[2][0]) ** 2)
-        Q33.append((KF.x_model[3][0] - ground_truth[3][0]) ** 2)
-        Q44.append((KF.x_model[4][0] - ground_truth[4][0]) ** 2)
-        Q55.append((KF.x_model[5][0] - ground_truth[5][0]) ** 2)
-        Q66.append((KF.x_model[6][0] - ground_truth[6][0]) ** 2)
-        Q77.append((KF.x_model[7][0] - ground_truth[7][0]) ** 2)
-        Q88.append((KF.x_model[8][0] - ground_truth[8][0]) ** 2)
-        Q99.append((KF.x_model[9][0] - ground_truth[9][0]) ** 2)
-        Q1010.append((KF.x_model[10][0] - ground_truth[10][0]) ** 2)
-        Q1111.append((KF.x_model[11][0] - ground_truth[11][0]) ** 2)
 
-        R00.append((KF.z[0][0] - ground_truth[0][0]) ** 2)
-        R11.append((KF.z[1][0] - ground_truth[1][0]) ** 2)
-        R22.append((KF.z[2][0] - ground_truth[2][0]) ** 2)
-        R33.append((KF.z[3][0] - ground_truth[5][0]) ** 2)
-        R44.append((KF.z[4][0] - ground_truth[6][0]) ** 2)
-        R55.append((KF.z[5][0] - ground_truth[7][0]) ** 2)
-        R66.append((KF.z[6][0] - ground_truth[8][0]) ** 2)
-        R77.append((KF.z[7][0] - ground_truth[9][0]) ** 2)
-        R88.append((KF.z[8][0] - ground_truth[10][0]) ** 2)
-        R99.append((KF.z[9][0] - ground_truth[11][0]) ** 2)
+        ground_truth_data.append(ground_truth_t1)
+        measurement_data.append(KF.z)
+        model_data.append(KF.x_model)
 
-    KF.Q[0, 0] = sum(Q00) / (len(R00))
-    KF.Q[1, 1] = sum(Q11) / (len(R00))
-    KF.Q[2, 2] = sum(Q22) / (len(R00))
-    KF.Q[3, 3] = sum(Q33) / (len(R00))
-    KF.Q[4, 4] = sum(Q44) / (len(R00))
-    KF.Q[5, 5] = sum(Q55) / (len(R00))
-    KF.Q[6, 6] = sum(Q66) / (len(R00))
-    KF.Q[7, 7] = sum(Q77) / (len(R00))
-    KF.Q[8, 8] = sum(Q88) / (len(R00))
-    KF.Q[9, 9] = sum(Q99) / (len(R00))
-    KF.Q[10, 10] = sum(Q1010) / (len(R00))
-    KF.Q[11, 11] = sum(Q1111) / (len(R00))
+    # Assuming model_data and ground_truth_data are your lists of lists containing 12x1 numpy arrays
+    # Convert the lists of lists into a single numpy array for each dataset
+    # Estimate the innovation (residual) between predictions and measurements
+    innovation_model = []
+    for i in range(len(model_data)):
+        innovation_model.append(ground_truth_data[i].reshape(12,1) - model_data[i].reshape(12,1))
+    innovation_array = np.array(innovation_model)
+    num_samples = innovation_array.shape[0]
+    innovation_array_2d = innovation_array.reshape(num_samples, -1)
 
-    KF.R[0, 0] = sum(R00) / (len(R00))
-    KF.R[1, 1] = sum(R11) / (len(R00))
-    KF.R[2, 2] = sum(R22) / (len(R00))
-    KF.R[3, 3] = sum(R33) / (len(R00))
-    KF.R[4, 4] = sum(R44) / (len(R00))
-    KF.R[5, 5] = sum(R55) / (len(R00))
-    KF.R[6, 6] = sum(R66) / (len(R00))
-    KF.R[7, 7] = sum(R77) / (len(R00))
-    KF.R[8, 8] = sum(R88) / (len(R00))
-    KF.R[9, 9] = sum(R99) / (len(R00))
+    # Calculate the process noise covariance matrix Q
+    Q = np.var(innovation_array_2d, axis=0)
+    Q = np.diag(Q)
+
+    innovation_meas = []
+    for i in range(len(measurement_data)):
+        cur_meas = measurement_data[i]
+        cur_gth = ground_truth_data[i]
+        cur_ground_truth = np.array([cur_gth[0][0],cur_gth[1][0],cur_gth[2][0],cur_gth[5][0],cur_gth[6][0],cur_gth[7][0],cur_gth[8][0],cur_gth[9][0],cur_gth[10][0],cur_gth[11][0]]).reshape(10,1)
+        innovation_meas.append(cur_ground_truth.reshape(10,1) - cur_meas.reshape(10,1))
+    innovation_array = np.array(innovation_meas)
+    num_samples = innovation_array.shape[0]
+    innovation_array_2d = innovation_array.reshape(num_samples, -1)
+
+    # Calculate the process noise covariance matrix Q
+    R = np.var(innovation_array_2d, axis=0)
+    # Create a diagonal matrix with the diagonal values
+    R = np.diag(R)
+
 
     KF2 = Kalman_Filter()
     x_start = mocap_list[0]
     KF2.x[:] = x_start
-    KF2.Q = KF.Q
-    KF2.R = KF.R
-    KF2.P = KF.Q
+    KF2.Q = Q
+    KF2.R = R
+    KF2.P = Q
 
     # plotting results of Kalman filter
     thx_est = []
@@ -189,6 +160,7 @@ for k in range(len(data_collection)):
     state_MOCAP = []
     state_T265 = []
     p_trace = []
+    K_gain = []
     for i in range(traj_length):
         p = p_list_est[i].reshape(12,1)
         dp = dp_list[i].reshape(12,1)
@@ -197,7 +169,7 @@ for k in range(len(data_collection)):
         x_ref = mocap_list[i].reshape(12, 1)
         x = KF2.estimate_state_mpc(imu,p,dp,x_ref,contact_ref)
         p_trace.append(KF2.P_trace)
-
+        K_gain.append(KF2.K_gain)
 
         if i == 0:
             moving_average_dthx = [x[6][0]] * filter_horizon
@@ -322,17 +294,40 @@ for k in range(len(data_collection)):
     plt.title('position')
 
     plt.figure(5)
-    #plt.plot(time,drx_est)
-    #plt.plot(time,drx_mocap)
-    #plt.plot(time,dry_est)
-    #plt.plot(time,dry_mocap)
+    plt.plot(time,drx_est)
+    plt.plot(time,drx_mocap)
+    plt.plot(time,drx_t265)
+    plt.plot(time,dry_est)
+    plt.plot(time,dry_mocap)
+    plt.plot(time,dry_t265)
     plt.plot(time,drz_est)
     plt.plot(time,drz_mocap)
-    plt.legend(['est dx','vicon dx','est dy', 'vicon dy', 'est dz', 'vicon dz'])
+    plt.plot(time,drz_t265)
+    plt.legend(['est dx','vicon dx','t265 dx','est dy', 'vicon dy', 't265 dy', 'est dz', 'vicon dz', 't265 dz',])
     plt.title('velocity')
 
+
     plt.figure(6)
+    #plt.plot(time, thx_est)
+    #plt.plot(time, thx_mocap)
+    #plt.plot(time, thx_t265)
+    #plt.plot(time, thy_est)
+    #plt.plot(time, thy_mocap)
+    #plt.plot(time, thy_t265)
+    plt.plot(time, thz_est)
+    plt.plot(time, thz_mocap)
+    plt.plot(time, thz_t265)
+    #plt.legend(['est thx', 'vicon thx', 't265 thx', 'est thy', 'vicon thy', 't265 thy', 'est thz', 'vicon thz', 't265 thz', ])
+    plt.legend(['est thz', 'vicon thz', 't265 thz', ])
+    plt.title('velocity')
+
+
+    plt.figure(7)
     plt.plot(p_trace)
+
+    plt.figure(8)
+    plt.plot(K_gain)
+
     if INITIAL_PARAMS.VISUALIZE_DATA_CONVERSION:
         plt.show()
 

@@ -11,16 +11,20 @@ from torchvision import transforms
 import torch.nn as nn
 import shutil
 from scipy import io
+from settings import INITIAL_PARAMS
 # specify the dataset number to test on
-dataset_test_number = [1]
+dataset_test_number = [1,2]
 
 hidden_size_2 = 128+64
 num_layers_2 = 4
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 12
-input_size = 30+128
-sequence_length = 5
+if INITIAL_PARAMS.USE_VISION:
+    input_size = 30+128
+else:
+    input_size = 30
+sequence_length = 10
 hidden_size = 128+64
 num_layers = 4
 
@@ -63,6 +67,11 @@ state_KF_init = []
 state_VICON_init = []
 state_t265_init = []
 images_folder_test = dir_path + '/OptiState/data_collection/trajectories/saved_images/saved_images_traj_test'
+# Check if the folder exists
+if os.path.exists(images_folder_test):
+    # Remove the folder and its contents
+    shutil.rmtree(images_folder_test)
+
 if not os.path.exists(images_folder_test):
     os.makedirs(images_folder_test)
 
@@ -73,15 +82,16 @@ for i in range(len(dataset_test_number)):
     state_VICON_init.extend(data_collection[cur_dataset]['state_MOCAP'])
     state_t265_init.extend(data_collection[cur_dataset]['state_T265'])
 
-    cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
-    image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
-    # Rename and copy images to the training folder
-    for index, image_file in enumerate(image_files):
-        new_filename = f"image_{cur_dataset}_{image_iterate}.png"
-        source_path = os.path.join(cur_image_directory, image_file)
-        destination_path = os.path.join(images_folder_test, new_filename)
-        shutil.copyfile(source_path, destination_path)
-        image_iterate+=1
+    if INITIAL_PARAMS.USE_VISION:
+        cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
+        image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
+        # Rename and copy images to the training folder
+        for index, image_file in enumerate(image_files):
+            new_filename = f"image_{cur_dataset}_{image_iterate}.png"
+            source_path = os.path.join(cur_image_directory, image_file)
+            destination_path = os.path.join(images_folder_test, new_filename)
+            shutil.copyfile(source_path, destination_path)
+            image_iterate+=1
 
 load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
 model = Transformer_Autoencoder()
@@ -107,28 +117,28 @@ normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_val
 # If you want to convert the normalized numpy array back to a list of lists
 state_VICON_init = normalized_state_VICON_init.tolist()
 
+if INITIAL_PARAMS.USE_VISION:
+    # load the autoencoder and output encoder values
+    encoder_output = []
+    counter = 0
+    for filename in sorted(os.listdir(images_folder_test), key=numerical_sort):
+        if filename.endswith(".png"):
+            image_path = os.path.join(images_folder_test, filename)
+            with Image.open(image_path) as img:
+                img = img.convert('RGB')
+                img = transform(img).unsqueeze(0)
+                with torch.no_grad():
+                    encoded = model.forward_encoder(img)
+                    encoded_1d = encoded.view(-1)
+                    encoded_1d_list = encoded_1d.numpy().tolist()
+                    encoder_output.append(encoded_1d_list)
+                    counter += 1
+                    if counter == len(state_KF_init):
+                        break
 
-# load the autoencoder and output encoder values
-encoder_output = []
-counter = 0
-for filename in sorted(os.listdir(images_folder_test), key=numerical_sort):
-    if filename.endswith(".png"):
-        image_path = os.path.join(images_folder_test, filename)
-        with Image.open(image_path) as img:
-            img = img.convert('RGB')
-            img = transform(img).unsqueeze(0)
-            with torch.no_grad():
-                encoded = model.forward_encoder(img)
-                encoded_1d = encoded.view(-1)
-                encoded_1d_list = encoded_1d.numpy().tolist()
-                encoder_output.append(encoded_1d_list)
-                counter += 1
-                if counter == len(state_KF_init):
-                    break
-
-# add the encoder output to the Kalman filter states for input to the GRU
-for i in range(len(state_KF_init)):
-    state_KF_init[i].extend(encoder_output[i])
+    # add the encoder output to the Kalman filter states for input to the GRU
+    for i in range(len(state_KF_init)):
+        state_KF_init[i].extend(encoder_output[i])
 
 state_KF = []
 for i in range(len(state_KF_init) - sequence_length + 1):
@@ -150,8 +160,13 @@ dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
 model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
-# load your saved model
-model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1.pth'))
+
+if INITIAL_PARAMS.USE_VISION:
+    # load your saved model
+    model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1_vision.pth'))
+else:
+    # load your saved model
+    model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1.pth'))
 # Put model in eval mode
 model.eval()
 
@@ -218,8 +233,12 @@ dataset = TensorDataset(state_KF_tensor, state_output_error_tensor)
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
 model2 = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device, use_sigmoid=False).to(device)
-# load your saved model
-model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error.pth'))
+
+if INITIAL_PARAMS.USE_VISION:
+    # load your saved model
+    model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error_vision.pth'))
+else:
+    model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error.pth'))
 # Put model in eval mode
 model2.eval()
 
@@ -237,7 +256,6 @@ with torch.no_grad():
 
 error_GRU = np.array(error_GRU)
 error_GRU = error_GRU.reshape(-1, num_outputs)
-
 #for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
 #    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
 
@@ -404,4 +422,13 @@ print("Mean Absolute Error for each column (t265):", mae_t265)
 
 mat_file_path = dir_path + '/OptiState/data_results/test_results_flat.mat'
 # Save the datasets to the .mat file
+io.savemat(mat_file_path, dataset_save)
+
+dataset_save = {
+    'error_gru': mae_gru,
+    'error_KF': mae_KF,
+    'error_t265': mae_t265
+}
+mat_file_path = dir_path + '/OptiState/data_results/test_results_flat_error.mat'
+
 io.savemat(mat_file_path, dataset_save)

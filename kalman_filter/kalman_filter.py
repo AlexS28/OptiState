@@ -162,13 +162,15 @@ class Kalman_Filter:
         self.x_model = copy.deepcopy(self.x)
         self.P_trace = copy.deepcopy(np.trace(self.P))
 
+
     def update(self):
         # this is the update step for our Kalman filter. Before running this function, run the prediction function first
         y_bar = self.z - np.matmul(self.H, self.x)
         S = np.matmul(np.matmul(self.H, self.P), np.transpose(self.H)) + self.R
-        K = np.matmul(np.matmul(self.P, np.transpose(self.H)), np.linalg.inv(S))
-        self.x = self.x + np.matmul(K, y_bar)
-        self.P = np.matmul(self.identity_large - np.matmul(K, self.H), self.P)
+        self.K = np.matmul(np.matmul(self.P, np.transpose(self.H)), np.linalg.inv(S))
+        self.x = self.x + np.matmul(self.K, y_bar)
+        self.P = np.matmul(self.identity_large - np.matmul(self.K, self.H), self.P)
+        self.K_gain = copy.deepcopy(np.trace(self.K))
 
     def estimate_state(self, imu, p, dp, contact, f):
         # this function will estimate the state of the robot using the Kalman filter

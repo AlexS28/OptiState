@@ -44,7 +44,7 @@ transform = transforms.Compose([
 # Open the saved image using PIL
 image_list = []
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-folder_path = dir_path + "/ASCENT/vision/images3"
+folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_traj_1"
 
 import re
 
@@ -62,13 +62,11 @@ for filename in sorted(os.listdir(folder_path), key=numerical_sort):
             image_list.append(img)
 
 from transformer_model import Transformer_Autoencoder
-from autoencoder_model import Autoencoder
+
 
 
 if use_model == 'transformer':
     model = Transformer_Autoencoder()
-elif use_model=='CNN':
-    model = Autoencoder()
 else:
     print("Not valid model, please use CNN or transformer")
 

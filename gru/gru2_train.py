@@ -11,20 +11,25 @@ from torchvision import transforms
 import torch.nn as nn
 from scipy import io
 import shutil
+from settings import INITIAL_PARAMS
 
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6,7]
+dataset_train_number = [1]
 # Train GRU2
 training_percentage_2 = 1.0
 batch_size_2 = 64
-num_epochs_2 = 2000
+num_epochs_2 = 10
 learning_rate_2 = 0.0001
 hidden_size_2 = 128+64
 num_layers_2 = 4
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 12
-input_size = 30+128
+if INITIAL_PARAMS.USE_VISION:
+    input_size = 30+128
+else:
+    input_size = 30
+
 sequence_length = 5
 hidden_size = 128+64
 num_layers = 4
@@ -90,20 +95,20 @@ normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_val
 # If you want to convert the normalized numpy array back to a list of lists
 state_VICON_init = normalized_state_VICON_init.tolist()
 
+if INITIAL_PARAMS.USE_VISION:
+    load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
+    model = Transformer_Autoencoder()
+    model.load_state_dict(torch.load(load_model_name))
+    model.eval()
 
-load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
-model = Transformer_Autoencoder()
-model.load_state_dict(torch.load(load_model_name))
-model.eval()
+    file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
+    # Load the data from the pickle file
+    with open(file_encoder_path, 'rb') as file:
+        encoder_output = pickle.load(file)
 
-file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
-# Load the data from the pickle file
-with open(file_encoder_path, 'rb') as file:
-    encoder_output = pickle.load(file)
-
-# add the encoder output to the Kalman filter states for input to the GRU
-for i in range(len(state_KF_init)):
-    state_KF_init[i].extend(encoder_output[i])
+    # add the encoder output to the Kalman filter states for input to the GRU
+    for i in range(len(state_KF_init)):
+        state_KF_init[i].extend(encoder_output[i])
 
 state_KF = []
 for i in range(len(state_KF_init) - sequence_length + 1):
@@ -125,8 +130,11 @@ dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
 
 model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
 
-# load your saved model
-model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1.pth'))
+if INITIAL_PARAMS.USE_VISION:
+    # load your saved model
+    model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1_vision.pth'))
+else:
+    model.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model1.pth'))
 
 # Put model in eval mode
 model.eval()
@@ -226,8 +234,12 @@ for epoch in range(num_epochs_2):
 
     print(f'Epoch [{epoch + 1}/{num_epochs_2}], Loss: {loss.item():.16f}')
 
-# save your model
-torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model_error.pth')
+if INITIAL_PARAMS.USE_VISION:
+    # save your model
+    torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model_error_vision.pth')
+else:
+    # save your model
+    torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model_error.pth')
 
 plt.figure(1)
 plt.plot(loss_list_training)
