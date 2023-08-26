@@ -13,6 +13,7 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 from kalman_filter.kalman_filter import Kalman_Filter
+from nn_model import CustomNeuralNetwork
 
 KF_GRU = Kalman_Filter()
 # specify the dataset number to train on
@@ -32,8 +33,8 @@ sequence_length = 20
 hidden_size = 128+64
 num_layers = 2
 num_epochs = 3000
-batch_size = 16
-learning_rate = 0.000001
+batch_size = 64
+learning_rate = 0.0001
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
@@ -185,17 +186,17 @@ if INITIAL_PARAMS.USE_VISION:
         state_KF_init[i].extend(encoder_output[i])
 
 # reshape data to have sequences of length sequence_length
-state_KF = []
-for i in range(len(state_KF_init) - sequence_length + 1):
-    state_KF.append(state_KF_init[i:i + sequence_length])
+#state_KF = []
+#for i in range(len(state_KF_init) - sequence_length + 1):
+#    state_KF.append(state_KF_init[i:i + sequence_length])
 
-state_VICON = []
-for i in range(len(state_KF)):
-    state_VICON.append(state_VICON_init[i + sequence_length - 1])
+#state_VICON = []
+#for i in range(len(state_KF)):
+#    state_VICON.append(state_VICON_init[i + sequence_length - 1])
 
 # convert to tensor format
-state_KF_tensor = torch.tensor(state_KF, dtype=torch.float32)
-state_VICON_tensor = torch.tensor(state_VICON, dtype=torch.float32)
+state_KF_tensor = torch.tensor(state_KF_init, dtype=torch.float32)
+state_VICON_tensor = torch.tensor(state_VICON_init, dtype=torch.float32)
 
 # Create TensorDataset object
 dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
@@ -218,7 +219,7 @@ for i in range(num_models):
     # TODO: BELOW IS RANDOM SPLIT
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train, num_test])
 
-    model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
+    model = CustomNeuralNetwork(input_size, num_outputs).to(device)
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -235,7 +236,7 @@ for i in range(num_models):
         for i, (inputs, labels) in enumerate(train_loader):
             inputs = inputs.to(device)
             # Select the last time step from each sequence
-            last_timestep = inputs[:, -1, :]
+            last_timestep = inputs[:, :]
             # Slice columns from 30 to 75 (indices 29 to 75, inclusive)
             sliced_last_timestep = last_timestep[:, 30:]
             # The resulting array has shape (64, 46)
@@ -264,7 +265,7 @@ for i in range(num_models):
                 R = np.diag([cur_output[12],cur_output[13],cur_output[14],cur_output[15],cur_output[16],cur_output[17],cur_output[18],cur_output[19],cur_output[20],cur_output[21]])
                 KF_GRU.Q = Q
                 KF_GRU.R = R
-                KF_GRU.x = labels_array[i,0:12].reshape(12,1)
+                #KF_GRU.x = labels_array[i,0:12].reshape(12,1)
                 x_gru[i,:] = KF_GRU.estimate_state_mpc(imu[i,:].reshape(6,1),p[i,:].reshape(12,1),dp[i,:].reshape(12,1),x_ref[i,:].reshape(12,1),contact_ref[i,:].reshape(4,1)).reshape(12,)
                 output_gru[i,:] = labels_array[i,12:].reshape(12,)
 
