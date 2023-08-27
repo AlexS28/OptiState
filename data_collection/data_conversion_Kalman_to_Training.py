@@ -1,4 +1,5 @@
 # This file evaluates the Kalman filter
+import copy
 import sys
 import os
 # Get the directory of the script
@@ -36,6 +37,7 @@ for k in range(len(data_collection)):
     contact_list = cur_traj['contact_list']
     t265_list = cur_traj['t265_list']
     mocap_list = cur_traj['mocap_list']
+    mocap_list_2 = cur_traj['mocap_list']
     time_list = cur_traj['time_list']
     traj_length = len(p_list_ref)
 
@@ -113,7 +115,10 @@ for k in range(len(data_collection)):
     KF2.x[:] = x_start
     KF2.Q = Q
     KF2.R = R
-    KF2.P = Q
+    KF2.R[0,0] = 0.0001
+    KF2.R[1,1] = 0.0001
+    KF2.R[2,2] = 0.0001
+    KF2.P = copy.deepcopy(Q)
 
     # plotting results of Kalman filter
     thx_est = []
@@ -264,21 +269,21 @@ for k in range(len(data_collection)):
     plt.plot(time,dthx_mocap)
     plt.plot(time,dthx_t265)
     plt.legend(['est','vicon', 't265'])
-    plt.title('thx')
+    plt.title('dthx')
 
     plt.figure(2)
     plt.plot(time,dthy_est)
     plt.plot(time,dthy_mocap)
     plt.plot(time,dthy_t265)
     plt.legend(['est','vicon', 't265'])
-    plt.title('thy')
+    plt.title('dthy')
 
     plt.figure(3)
     plt.plot(time,dthz_est)
     plt.plot(time,dthz_mocap)
     plt.plot(time, dthz_t265)
     plt.legend(['est','vicon', 't265'])
-    plt.title('thz')
+    plt.title('dthz')
 
     plt.figure(4)
     plt.plot(time,rx_est)
@@ -314,9 +319,9 @@ for k in range(len(data_collection)):
     #plt.plot(time, thy_est)
     #plt.plot(time, thy_mocap)
     #plt.plot(time, thy_t265)
-    plt.plot(time, thz_est)
-    plt.plot(time, thz_mocap)
-    plt.plot(time, thz_t265)
+    plt.plot(time, thx_est)
+    plt.plot(time, thx_mocap)
+    plt.plot(time, thx_t265)
     #plt.legend(['est thx', 'vicon thx', 't265 thx', 'est thy', 'vicon thy', 't265 thy', 'est thz', 'vicon thz', 't265 thz', ])
     plt.legend(['est thz', 'vicon thz', 't265 thz', ])
     plt.title('velocity')

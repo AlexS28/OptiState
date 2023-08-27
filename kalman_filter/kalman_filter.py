@@ -61,9 +61,9 @@ class Kalman_Filter:
         # model state
         self.x_model = INITIAL_PARAMS.STARTING_STATE
 
-        Q = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 1.0, 1.0, 1.0, 100.0, 100.0, 100.0])
+        Q = np.array([10.0, 10.0, 10.0, 100.0, 100.0, 100.0, 1.0, 1.0, 5.0, 1.0, 1.0, 1.0])
         Q = np.diag(Q)
-        R_VALUE = 0.00001
+        R_VALUE = 0.000001
         R = np.array(
             [R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE, R_VALUE,
              R_VALUE])
@@ -149,19 +149,15 @@ class Kalman_Filter:
         sol = self.stance_controller.opti.solve()
         # retrieve desired reaction forces (control output of the MPC)
         self.f = sol.value(self.stance_controller.controls)
-
-        R = self.rotation_matrix_body_world(self.x[0], self.x[1], self.x[2])
+        R = self.rotation_matrix_body_world(body_ref[0], body_ref[1], body_ref[2])
         self.F[0:3, 6:9] = np.transpose(R)
 
         # calculate the discretized version of F and B matrices
-        self.F_d = self.identity_large + self.dt * self.F
-
+        self.F_d = np.exp(self.dt * self.F)
         self.P = np.matmul(np.matmul(self.F_d, self.P), np.transpose(self.F_d)) + self.Q
 
         self.x = next_state(self.x, p, self.f[:,0].reshape(12,1), self.dt)
         self.x_model = copy.deepcopy(self.x)
-        self.P_trace = copy.deepcopy(np.trace(self.P))
-
 
     def update(self):
         # this is the update step for our Kalman filter. Before running this function, run the prediction function first
@@ -169,7 +165,10 @@ class Kalman_Filter:
         S = np.matmul(np.matmul(self.H, self.P), np.transpose(self.H)) + self.R
         self.K = np.matmul(np.matmul(self.P, np.transpose(self.H)), np.linalg.inv(S))
         self.x = self.x + np.matmul(self.K, y_bar)
+        #self.x[3] = copy.deepcopy(self.x_model[3])
+        #self.x[4] = copy.deepcopy(self.x_model[4])
         self.P = np.matmul(self.identity_large - np.matmul(self.K, self.H), self.P)
+        self.P_trace = copy.deepcopy(np.trace(self.P))
         self.K_gain = copy.deepcopy(np.trace(self.K))
 
     def estimate_state(self, imu, p, dp, contact, f):
