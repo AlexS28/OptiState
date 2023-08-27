@@ -252,7 +252,6 @@ for k in range(len(data_collection)):
         drz_t265.append(t265[11][0])
 
         state_INPUT.append([
-        x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0],
         imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0], imu_list[i][10][0], imu_list[i][11][0],
         KF2.f[0,0], KF2.f[1,0], KF2.f[2,0], KF2.f[3,0], KF2.f[4,0], KF2.f[5,0],
         KF2.f[6,0], KF2.f[7,0], KF2.f[8,0], KF2.f[9,0], KF2.f[10,0], KF2.f[11,0],
@@ -260,11 +259,9 @@ for k in range(len(data_collection)):
         dp[0,0], dp[1,0], dp[2,0], dp[3,0], dp[4,0], dp[5,0], dp[6,0], dp[7,0], dp[8,0], dp[9,0], dp[10,0], dp[11,0],
         imu[0,0], imu[1,0], imu[2,0], imu[3,0], imu[4,0], imu[5,0],
         contact_ref[0,0], contact_ref[1,0], contact_ref[2,0], contact_ref[3,0],
-        x_ref[0,0], x_ref[1,0], x_ref[2,0], x_ref[3,0], x_ref[4,0], x_ref[5,0], x_ref[6,0], x_ref[7,0], x_ref[8,0], x_ref[9,0], x_ref[10,0], x_ref[11,0]
     ])
 
-        state_MOCAP.append([ground_truth[0][0],ground_truth[1][0],ground_truth[2][0],ground_truth[3][0],ground_truth[4][0],ground_truth[5][0],ground_truth[6][0],ground_truth[7][0],ground_truth[8][0],ground_truth[9][0],ground_truth[10][0],ground_truth[11][0],
-                            ground_truth1[0][0],ground_truth1[1][0],ground_truth1[2][0],ground_truth1[3][0],ground_truth1[4][0],ground_truth1[5][0],ground_truth1[6][0],ground_truth1[7][0],ground_truth1[8][0],ground_truth1[9][0],ground_truth1[10][0],ground_truth1[11][0]])
+        state_MOCAP.append([ground_truth[0][0],ground_truth[1][0],ground_truth[2][0],ground_truth[3][0],ground_truth[4][0],ground_truth[5][0],ground_truth[6][0],ground_truth[7][0],ground_truth[8][0],ground_truth[9][0],ground_truth[10][0],ground_truth[11][0]])
         state_T265.append([thx_t265[i],thy_t265[i],thz_t265[i],rx_t265[i],ry_t265[i],rz_t265[i],dthx_t265[i],dthy_t265[i],dthz_t265[i],drx_t265[i],dry_t265[i],drz_t265[i]])
 
 

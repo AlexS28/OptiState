@@ -13,8 +13,7 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 from kalman_filter.kalman_filter import Kalman_Filter
-from nn_model import CustomNeuralNetwork
-
+import copy
 KF_GRU = Kalman_Filter()
 # specify the dataset number to train on
 dataset_train_number = [1]
@@ -24,17 +23,18 @@ num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
 training_percentage = 0.8
 # Hyper-parameters for state estimate
-num_outputs = 22
+num_outputs = 24
 if INITIAL_PARAMS.USE_VISION:
-    input_size = 76+128
+    input_size = 76+128-24
 else:
-    input_size = 76
-sequence_length = 20
+    input_size = 76-24
+sequence_length = 10
 hidden_size = 128+64
-num_layers = 2
-num_epochs = 3000
+num_layers = 4
+num_epochs = 1000
 batch_size = 64
 learning_rate = 0.0001
+
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 # Device configuration
@@ -109,22 +109,22 @@ for i in range(len(dataset_train_number)):
 
 
 # Convert your list of lists to a numpy array for easier processing
-#state_KF_init_array = np.array(state_KF_init)
+state_KF_init_array = np.array(state_KF_init)
 # Perform Min-Max scaling for each component
-#normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_vals)
+normalized_state_KF_init = (state_KF_init_array - min_vals) / (max_vals - min_vals)
 # The 'normalized_state_KF_init' array now contains the normalized values
 # Each row corresponds to a list in the original 'state_KF_init'
 # If you want to convert the normalized numpy array back to a list of lists
-#state_KF_init = normalized_state_KF_init.tolist()
+state_KF_init = normalized_state_KF_init.tolist()
 
 # Convert your list of lists to a numpy array for easier processing
-#state_VICON_init_array = np.array(state_VICON_init)
+state_VICON_init_array = np.array(state_VICON_init)
 # Perform Min-Max scaling for each component
-#normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_vals_VIC - min_vals_VIC)
+normalized_state_VICON_init = (state_VICON_init_array - min_vals_VIC) / (max_vals_VIC - min_vals_VIC)
 # The 'normalized_state_KF_init' array now contains the normalized values
 # Each row corresponds to a list in the original 'state_KF_init'
 # If you want to convert the normalized numpy array back to a list of lists
-#state_VICON_init = normalized_state_VICON_init.tolist()
+state_VICON_init = normalized_state_VICON_init.tolist()
 
 
 # Specify the file path to save the pickle file
@@ -186,17 +186,17 @@ if INITIAL_PARAMS.USE_VISION:
         state_KF_init[i].extend(encoder_output[i])
 
 # reshape data to have sequences of length sequence_length
-#state_KF = []
-#for i in range(len(state_KF_init) - sequence_length + 1):
-#    state_KF.append(state_KF_init[i:i + sequence_length])
+state_KF = []
+for i in range(len(state_KF_init) - sequence_length + 1):
+    state_KF.append(state_KF_init[i:i + sequence_length])
 
-#state_VICON = []
-#for i in range(len(state_KF)):
-#    state_VICON.append(state_VICON_init[i + sequence_length - 1])
+state_VICON = []
+for i in range(len(state_KF)):
+    state_VICON.append(state_VICON_init[i + sequence_length - 1])
 
 # convert to tensor format
-state_KF_tensor = torch.tensor(state_KF_init, dtype=torch.float32)
-state_VICON_tensor = torch.tensor(state_VICON_init, dtype=torch.float32)
+state_KF_tensor = torch.tensor(state_KF, dtype=torch.float32)
+state_VICON_tensor = torch.tensor(state_VICON, dtype=torch.float32)
 
 # Create TensorDataset object
 dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
@@ -218,8 +218,30 @@ for i in range(num_models):
 
     # TODO: BELOW IS RANDOM SPLIT
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train, num_test])
+    #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
-    model = CustomNeuralNetwork(input_size, num_outputs).to(device)
+    # TODO: BELOW IS NO RANDOM SPLIT
+    # specify the training and testing percentages
+    #testing_percentage = 1 - training_percentage
+
+    # calculate the number of samples for training and testing
+    #num_samples = len(dataset)
+    #num_train = int(training_percentage * num_samples)
+    #num_test = num_samples - num_train
+
+    # create indices for training and testing samples
+    #train_indices = list(range(num_train))
+    #test_indices = list(range(num_train, num_samples))
+
+    # create Subset objects using the indices
+    #train_dataset = torch.utils.data.Subset(dataset, train_indices)
+    #test_dataset = torch.utils.data.Subset(dataset, test_indices)
+
+    # create DataLoader objects for training and testing
+    #train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+
+    model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -231,48 +253,24 @@ for i in range(num_models):
     plt.ion()  # Turn on interactive mode
     fig, ax = plt.subplots()
     line, = ax.plot([], [])  # Create an empty line for the plot
+
     for epoch in range(num_epochs):
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         for i, (inputs, labels) in enumerate(train_loader):
             inputs = inputs.to(device)
-            # Select the last time step from each sequence
-            last_timestep = inputs[:, :]
-            # Slice columns from 30 to 75 (indices 29 to 75, inclusive)
-            sliced_last_timestep = last_timestep[:, 30:]
-            # The resulting array has shape (64, 46)
-            inputs_array = sliced_last_timestep.cpu().numpy()
-
             labels = labels.to(device)
-            # The resulting array has shape (64, 46)
-            labels_array = labels.cpu().numpy()
-
-            # Extracting specific components
-             # Extract imu (indices 12 to 17)
-            p = np.array(inputs_array[:,0:12])  # Extract p (indices 18 to 29)
-            dp = np.array(inputs_array[:,12:24])  # Extract dp (indices 30 to 41)
-            imu = np.array(inputs_array[:,24:30])
-            contact_ref = np.array(inputs_array[:,30:34])  # Extract contact_ref (indices 42 to 45)
-            x_ref = np.array(inputs_array[:,34:])  # Extract x_ref (indices 46 to 57)
-            x_gru = np.zeros((batch_size,12))
-            output_gru = np.zeros((batch_size,12))
-
             # Forward pass
             outputs = model(inputs)
-            outputs_array = outputs.cpu().detach().numpy()
-            for i in range(p.shape[0]):
-                cur_output = outputs_array[i,:]
-                Q = np.diag([cur_output[0],cur_output[1],cur_output[2],cur_output[3],cur_output[4],cur_output[5],cur_output[6],cur_output[7],cur_output[8],cur_output[9],cur_output[10],cur_output[11]])
-                R = np.diag([cur_output[12],cur_output[13],cur_output[14],cur_output[15],cur_output[16],cur_output[17],cur_output[18],cur_output[19],cur_output[20],cur_output[21]])
-                KF_GRU.Q = Q
-                KF_GRU.R = R
-                #KF_GRU.x = labels_array[i,0:12].reshape(12,1)
-                x_gru[i,:] = KF_GRU.estimate_state_mpc(imu[i,:].reshape(6,1),p[i,:].reshape(12,1),dp[i,:].reshape(12,1),x_ref[i,:].reshape(12,1),contact_ref[i,:].reshape(4,1)).reshape(12,)
-                output_gru[i,:] = labels_array[i,12:].reshape(12,)
+            outputs_array = copy.deepcopy(outputs.cpu().detach().numpy())
+            labels_array = labels.cpu().numpy()
+            ground_truth_array = np.zeros((outputs_array.shape[0],24))
+            for l in range(outputs_array.shape[0]):
+                error_array = outputs_array[l,0:12].reshape(12, 1) - labels_array[l,:].reshape(12, 1)
+                ground_truth_array[l,0:12] = labels_array[l,0:12]
+                ground_truth_array[l,12:] = error_array.reshape(12,)
+            ground_truth_tensor = torch.from_numpy(ground_truth_array).requires_grad_().to(device).float()
 
-            # Convert NumPy arrays to PyTorch tensors
-            output_gru_tensor = torch.from_numpy(output_gru).requires_grad_()
-            x_gru_tensor = torch.from_numpy(x_gru).requires_grad_()
-            loss = criterion(x_gru_tensor, output_gru_tensor)
+            loss = criterion(outputs, ground_truth_tensor)
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
@@ -282,7 +280,7 @@ for i in range(num_models):
 
             # Print progress every 1000 iterations
             #if (i + 1) % 10 == 0:
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {np.mean(loss_list_training):.16f}')
+        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.16f}')
         loss_list_training_mean.append(np.mean(loss_list_training))
         # Update the plot with the new data
         ax.clear()  # Clear the previous plot
