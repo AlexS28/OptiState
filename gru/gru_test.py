@@ -13,13 +13,13 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 # specify the dataset number to test on
-dataset_test_number = [1,2]
+dataset_test_number = [1]
 
 hidden_size_2 = 128+64
 num_layers_2 = 4
 
 # Hyper-parameters (same values as GRU 1)
-num_outputs = 12
+num_outputs = 24
 if INITIAL_PARAMS.USE_VISION:
     input_size = 30+128
 else:
@@ -159,7 +159,7 @@ dataset = TensorDataset(state_KF_tensor, state_VICON_tensor)
 # Create DataLoader object for entire dataset
 data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
 
-model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
+model = RNN(input_size, hidden_size, num_layers, num_outputs, device, evaluate=True).to(device)
 
 if INITIAL_PARAMS.USE_VISION:
     # load your saved model
@@ -174,7 +174,7 @@ model.eval()
 # Create lists to store predicted and ground truth values
 preds = []
 ground_truth = []
-
+preds_error = []
 with torch.no_grad():
     for inputs, labels in data_loader:
         # Move inputs and labels to device
@@ -183,85 +183,26 @@ with torch.no_grad():
         # Forward pass
         outputs = model(inputs)
         # Append predicted and ground truth values to respective lists
-        preds_total = outputs.cpu().numpy()
-        preds.append(preds_total)
+        preds_np = outputs[0,0:12].cpu().numpy().reshape(12,1)
+        preds_error_np = outputs[0,12:].cpu().numpy().reshape(12,1)
+        preds_np = preds_np - preds_error_np
+
+        preds.append(preds_np)
+        preds_error.append(preds_error_np)
         ground_truth_np = labels.cpu().numpy()
         ground_truth.append(ground_truth_np)
 
 # Convert predicted and ground truth lists to numpy arrays
 preds = np.array(preds)
 ground_truth = np.array(ground_truth)
+preds_error = np.array(preds_error)
 
 # Reshape predicted and ground truth arrays to have the same shape
-preds = preds.reshape(-1, num_outputs)
-ground_truth = ground_truth.reshape(-1, num_outputs)
+preds = preds.reshape(-1, 12)
+ground_truth = ground_truth.reshape(-1, 12)
 input_KF = np.array(state_KF_init)
-
-output_error = []
-for i in range(preds.shape[0]):
-    thx_error = preds[i, 0] - ground_truth[i, 0]
-    thy_error = preds[i, 1] - ground_truth[i, 1]
-    thz_error = preds[i, 2] - ground_truth[i, 2]
-    x_error = preds[i, 3] - ground_truth[i, 3]
-    y_error = preds[i, 4] - ground_truth[i, 4]
-    z_error = preds[i, 5] - ground_truth[i, 5]
-    dthx_error = preds[i, 6] - ground_truth[i, 6]
-    dthy_error = preds[i, 7] - ground_truth[i, 7]
-    dthz_error = preds[i, 8] - ground_truth[i, 8]
-    dx_error = preds[i, 9] - ground_truth[i, 9]
-    dy_error = preds[i, 10] - ground_truth[i, 10]
-    dz_error = preds[i, 11] - ground_truth[i, 11]
-    output_error.append([thx_error, thy_error, thz_error, x_error, y_error, z_error, dthx_error, dthy_error, dthz_error, dx_error, dy_error, dz_error])
-
-state_KF_2 = []
-state_KF_init_2 = state_KF_init[:preds.shape[0]]
-for i in range(len(state_KF_init_2) - sequence_length + 1):
-    state_KF_2.append(state_KF_init_2[i:i + sequence_length])
-
-state_output_error = []
-for i in range(len(state_KF_2)):
-    state_output_error.append(output_error[i + sequence_length - 1])
-
-# convert to tensor format
-state_KF_tensor = torch.tensor(state_KF_2, dtype=torch.float32)
-state_output_error_tensor = torch.tensor(state_output_error, dtype=torch.float32)
-
-# Create TensorDataset object
-dataset = TensorDataset(state_KF_tensor, state_output_error_tensor)
-
-# Create DataLoader object for entire dataset
-data_loader = DataLoader(dataset=dataset, batch_size=1, shuffle=False)
-
-model2 = RNN(input_size, hidden_size_2, num_layers_2, num_outputs, device, use_sigmoid=False).to(device)
-
-if INITIAL_PARAMS.USE_VISION:
-    # load your saved model
-    model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error_vision.pth'))
-else:
-    model2.load_state_dict(torch.load(dir_path + '/OptiState/gru/gru_models/model_error.pth'))
-# Put model in eval mode
-model2.eval()
-
-error_GRU = []
-with torch.no_grad():
-    for inputs, labels in data_loader:
-        # Move inputs and labels to device
-        inputs = inputs.to(device)
-        labels = labels.to(device)
-        # Forward pass
-        outputs = model2(inputs)
-        # Append predicted and ground truth values to respective lists
-        preds_total = outputs.cpu().numpy()
-        error_GRU.append(preds_total)
-
-error_GRU = np.array(error_GRU)
-error_GRU = error_GRU.reshape(-1, num_outputs)
-#for i in range(sequence_length - 1,error_GRU.shape[0]-sequence_length-1):
-#    preds[i,:] = -1*error_GRU[i,:] + preds[i,:]
-
 preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
 ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
-
 input_KF = input_KF[:,0:30].reshape(input_KF.shape[0],30) * (max_vals - min_vals) + min_vals
 state_t265 = []
 for i in range(sequence_length-1,len(state_t265_init)):
@@ -281,12 +222,12 @@ for i in range(preds.shape[1]):
     #input_KF[:, i] = np.convolve(input_KF[:, i], np.ones(100) / 100, mode='same')
 
 
-end_plot = error_GRU.shape[0]
+end_plot = preds.shape[0]
 
 # Plot predicted, ground truth, and input or Kalman filter output
 plt.figure(1)
 plt.plot(preds[:end_plot, 0], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 0] - error_GRU[:end_plot,0], preds[:end_plot, 0] + error_GRU[:end_plot,0], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 0] - error_GRU[:end_plot,0], preds[:end_plot, 0] + error_GRU[:end_plot,0], alpha=0.3)
 plt.plot(ground_truth[:, 0], label="Vicon")
 plt.plot(input_KF[:, 0], label="Kalman Filter")
 plt.plot(state_t265[:,0], label='Baseline')
@@ -295,7 +236,7 @@ plt.legend(['thx GRU','thx Vicon','thx Kalman Filter','Baseline'])
 
 plt.figure(2)
 plt.plot(preds[:, 1], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 1] - error_GRU[:end_plot,1], preds[:end_plot, 1] + error_GRU[:end_plot,1], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 1] - error_GRU[:end_plot,1], preds[:end_plot, 1] + error_GRU[:end_plot,1], alpha=0.3)
 plt.plot(ground_truth[:, 1], label="Vicon")
 plt.plot(input_KF[:, 1], label="Kalman Filter")
 plt.plot(state_t265[:,1], label='Baseline')
@@ -304,7 +245,7 @@ plt.legend(['thy GRU','thy Vicon','thy Kalman Filter','Basline'])
 
 plt.figure(3)
 plt.plot(preds[:, 2], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 2] - error_GRU[:end_plot,2], preds[:end_plot, 2] + error_GRU[:end_plot,2], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 2] - error_GRU[:end_plot,2], preds[:end_plot, 2] + error_GRU[:end_plot,2], alpha=0.3)
 plt.plot(ground_truth[:, 2], label="Vicon")
 plt.plot(input_KF[:, 2], label="Kalman Filter")
 plt.plot(state_t265[:,2], label='Baseline')
@@ -313,7 +254,7 @@ plt.legend(['thz GRU','thz Vicon','thz Kalman Filter','Basline'])
 
 plt.figure(4)
 plt.plot(preds[:, 3], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 3] - error_GRU[:end_plot,3], preds[:end_plot, 3] + error_GRU[:end_plot,3], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 3] - error_GRU[:end_plot,3], preds[:end_plot, 3] + error_GRU[:end_plot,3], alpha=0.3)
 plt.plot(ground_truth[:, 3], label="Vicon")
 plt.plot(input_KF[:, 3], label="Kalman Filter")
 plt.plot(state_t265[:,3], label='Baseline')
@@ -322,7 +263,7 @@ plt.legend(['x GRU', 'x Vicon','x Kalman Filter','Baseline'])
 
 plt.figure(5)
 plt.plot(preds[:, 4], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 4] - error_GRU[:end_plot, 4], preds[:end_plot, 4] + error_GRU[:end_plot,4], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 4] - error_GRU[:end_plot, 4], preds[:end_plot, 4] + error_GRU[:end_plot,4], alpha=0.3)
 plt.plot(ground_truth[:, 4], label="Vicon")
 plt.plot(input_KF[:, 4], label="Kalman Filter")
 plt.plot(state_t265[:,4], label='Baseline')
@@ -331,7 +272,7 @@ plt.legend(['y GRU','y Vicon','y Kalman Filter','y Baseline'])
 
 plt.figure(6)
 plt.plot(preds[:, 5], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 5] - error_GRU[:end_plot, 5], preds[:end_plot, 5] + error_GRU[:end_plot,5], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 5] - error_GRU[:end_plot, 5], preds[:end_plot, 5] + error_GRU[:end_plot,5], alpha=0.3)
 plt.plot(ground_truth[:, 5], label="Vicon")
 plt.plot(input_KF[:, 5], label="Kalman Filter")
 plt.title('z')
@@ -339,7 +280,7 @@ plt.legend(['z GRU','z Vicon','z Kalman Filter'])
 
 plt.figure(7)
 plt.plot(preds[:, 6], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 6] - error_GRU[:end_plot, 6], preds[:end_plot, 6] + error_GRU[:end_plot,6], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 6] - error_GRU[:end_plot, 6], preds[:end_plot, 6] + error_GRU[:end_plot,6], alpha=0.3)
 plt.plot(ground_truth[:, 6], label="Vicon")
 plt.plot(input_KF[:, 6], label="Kalman Filter")
 plt.title('dthx')
@@ -347,7 +288,7 @@ plt.legend(['dthx GRU','dthx Vicon','dthx Kalman Filter'])
 
 plt.figure(8)
 plt.plot(preds[:, 7], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 7] - error_GRU[:end_plot, 7], preds[:end_plot, 7] + error_GRU[:end_plot,7], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 7] - error_GRU[:end_plot, 7], preds[:end_plot, 7] + error_GRU[:end_plot,7], alpha=0.3)
 plt.plot(ground_truth[:, 7], label="Vicon")
 plt.plot(input_KF[:, 7], label="Kalman Filter")
 plt.title('dthy')
@@ -355,7 +296,7 @@ plt.legend(['dthy GRU','dthy Vicon','dthy Kalman Filter'])
 
 plt.figure(9)
 plt.plot(preds[:, 8], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 8] - error_GRU[:end_plot, 8], preds[:end_plot, 8] + error_GRU[:end_plot,8], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 8] - error_GRU[:end_plot, 8], preds[:end_plot, 8] + error_GRU[:end_plot,8], alpha=0.3)
 plt.plot(ground_truth[:, 8], label="Vicon")
 plt.plot(input_KF[:, 8], label="Kalman Filter")
 plt.title('dthz')
@@ -363,7 +304,7 @@ plt.legend(['dthz GRU','dthz Vicon','dthz Kalman Filter'])
 
 plt.figure(10)
 plt.plot(preds[:, 9], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 9] - error_GRU[:end_plot, 9], preds[:end_plot, 9] + error_GRU[:end_plot,9], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 9] - error_GRU[:end_plot, 9], preds[:end_plot, 9] + error_GRU[:end_plot,9], alpha=0.3)
 plt.plot(ground_truth[:, 9], label="Vicon")
 plt.plot(input_KF[:, 9], label="Kalman Filter")
 plt.title('dx')
@@ -371,7 +312,7 @@ plt.legend(['dx GRU','dx Vicon','dx Kalman Filter'])
 
 plt.figure(11)
 plt.plot(preds[:, 10], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 10] - error_GRU[:end_plot, 10], preds[:end_plot, 10] + error_GRU[:end_plot,10], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 10] - error_GRU[:end_plot, 10], preds[:end_plot, 10] + error_GRU[:end_plot,10], alpha=0.3)
 plt.plot(ground_truth[:, 10], label="Vicon")
 plt.plot(input_KF[:, 10], label="Kalman Filter")
 plt.plot(state_t265[:,10], label='Baseline')
@@ -381,7 +322,7 @@ plt.legend(['dy GRU','dy Vicon','dy Kalman Filter','Baseline'])
 
 plt.figure(12)
 plt.plot(preds[:, 11], label="GRU")
-plt.fill_between(range(end_plot), preds[:end_plot, 11] - error_GRU[:end_plot, 11], preds[:end_plot, 11] + error_GRU[:end_plot,11], alpha=0.3)
+#plt.fill_between(range(end_plot), preds[:end_plot, 11] - error_GRU[:end_plot, 11], preds[:end_plot, 11] + error_GRU[:end_plot,11], alpha=0.3)
 plt.plot(ground_truth[:, 11], label="Vicon")
 plt.plot(input_KF[:, 11], label="Kalman Filter")
 plt.title('dz')
@@ -390,7 +331,7 @@ plt.show()
 
 dataset_save = {
     'gru': preds,
-    'gru_error': error_GRU,
+    'gru_error': [],
     'kalman': input_KF,
     'mocap': ground_truth,
     't265': state_t265

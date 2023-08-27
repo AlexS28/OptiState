@@ -12,7 +12,7 @@ from transformer.transformer_model import Transformer_Autoencoder
 import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
-
+import copy
 # specify the dataset number to train on
 dataset_train_number = [1]
 total_number_datasets = [1,2]
@@ -21,7 +21,7 @@ num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
 training_percentage = 0.8
 # Hyper-parameters for state estimate
-num_outputs = 12
+num_outputs = 12+12
 if INITIAL_PARAMS.USE_VISION:
     input_size = 30+128
 else:
@@ -245,6 +245,11 @@ for i in range(num_models):
     train_loss = []
     test_loss = []
     loss_list_training = []
+    loss_list_training_mean = []
+    # Set up a figure and axis for plotting
+    plt.ion()  # Turn on interactive mode
+    fig, ax = plt.subplots()
+    line, = ax.plot([], [])  # Create an empty line for the plot
 
     for epoch in range(num_epochs):
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -253,7 +258,16 @@ for i in range(num_models):
             labels = labels.to(device)
             # Forward pass
             outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            outputs_array = copy.deepcopy(outputs.cpu().detach().numpy())
+            labels_array = labels.cpu().numpy()
+            ground_truth_array = np.zeros((outputs_array.shape[0],24))
+            for l in range(outputs_array.shape[0]):
+                error_array = outputs_array[l,0:12].reshape(12, 1) - labels_array[l,:].reshape(12, 1)
+                ground_truth_array[l,0:12] = labels_array[l,0:12]
+                ground_truth_array[l,12:] = error_array.reshape(12,)
+            ground_truth_tensor = torch.from_numpy(ground_truth_array).requires_grad_().to(device).float()
+
+            loss = criterion(outputs, ground_truth_tensor)
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
@@ -264,6 +278,14 @@ for i in range(num_models):
             # Print progress every 1000 iterations
             #if (i + 1) % 10 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.16f}')
+        loss_list_training_mean.append(np.mean(loss_list_training))
+        # Update the plot with the new data
+        ax.clear()  # Clear the previous plot
+        ax.plot(loss_list_training_mean, label='Mean Loss')
+        ax.set_xlabel('Epoch')
+        ax.set_ylabel('Mean Loss')
+        ax.legend()
+        plt.pause(0.001)  # Adjust the pause duration as needed
 
     if INITIAL_PARAMS.USE_VISION:
         # save your model
