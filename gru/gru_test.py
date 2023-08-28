@@ -13,19 +13,16 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 # specify the dataset number to test on
-dataset_test_number = [1]
-
-hidden_size_2 = 128+64
-num_layers_2 = 4
+dataset_test_number = [1,2]
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 24
 if INITIAL_PARAMS.USE_VISION:
-    input_size = 30+128
+    input_size = 64+128
 else:
-    input_size = 30
-sequence_length = 10
-hidden_size = 128+64
+    input_size = 64
+sequence_length = 20
+hidden_size = 128
 num_layers = 4
 
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -203,7 +200,7 @@ ground_truth = ground_truth.reshape(-1, 12)
 input_KF = np.array(state_KF_init)
 preds = preds * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
 ground_truth = ground_truth * (max_vals_VIC - min_vals_VIC) + min_vals_VIC
-input_KF = input_KF[:,0:30].reshape(input_KF.shape[0],30) * (max_vals - min_vals) + min_vals
+input_KF = input_KF[:,0:max_vals.shape[0]].reshape(len(input_KF),max_vals.shape[0]) * (max_vals - min_vals) + min_vals
 state_t265 = []
 for i in range(sequence_length-1,len(state_t265_init)):
     state_t265.append(state_t265_init[i])

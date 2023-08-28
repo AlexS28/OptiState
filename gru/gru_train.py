@@ -14,8 +14,8 @@ from scipy import io
 from settings import INITIAL_PARAMS
 import copy
 # specify the dataset number to train on
-dataset_train_number = [1]
-total_number_datasets = [1,2]
+dataset_train_number = [1,2]
+total_number_datasets = [1,2,3,4,5,6,7]
 # specify number of models to train
 num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
@@ -23,13 +23,13 @@ training_percentage = 0.8
 # Hyper-parameters for state estimate
 num_outputs = 12+12
 if INITIAL_PARAMS.USE_VISION:
-    input_size = 30+128
+    input_size = 64+128
 else:
-    input_size = 30
-sequence_length = 10
+    input_size = 64
+sequence_length = 20
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 3000
+num_epochs = 1000
 batch_size = 64
 learning_rate = 0.0001
 
@@ -292,7 +292,7 @@ for i in range(num_models):
         torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}_vision.pth')
     else:
         torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}.pth')
-    cur_model += 1
+    #cur_model += 1
 
 
 plt.figure(1)

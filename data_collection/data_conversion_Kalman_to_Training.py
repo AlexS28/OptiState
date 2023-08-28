@@ -80,36 +80,53 @@ for k in range(len(data_collection)):
         measurement_data.append(KF.z)
         model_data.append(KF.x_model)
 
-    # Assuming model_data and ground_truth_data are your lists of lists containing 12x1 numpy arrays
-    # Convert the lists of lists into a single numpy array for each dataset
-    # Estimate the innovation (residual) between predictions and measurements
-    innovation_model = []
-    for i in range(len(model_data)):
-        innovation_model.append(ground_truth_data[i].reshape(12,1) - model_data[i].reshape(12,1))
-    innovation_array = np.array(innovation_model)
-    num_samples = innovation_array.shape[0]
-    innovation_array_2d = innovation_array.reshape(num_samples, -1)
+# Assuming model_data and ground_truth_data are your lists of lists containing 12x1 numpy arrays
+# Convert the lists of lists into a single numpy array for each dataset
+# Estimate the innovation (residual) between predictions and measurements
+innovation_model = []
+for i in range(len(model_data)):
+    innovation_model.append(ground_truth_data[i].reshape(12,1) - model_data[i].reshape(12,1))
+innovation_array = np.array(innovation_model)
+num_samples = innovation_array.shape[0]
+innovation_array_2d = innovation_array.reshape(num_samples, -1)
 
-    # Calculate the process noise covariance matrix Q
-    Q = np.var(innovation_array_2d, axis=0)
-    Q = np.diag(Q)
+# Calculate the process noise covariance matrix Q
+Q = np.var(innovation_array_2d, axis=0)
+Q = np.diag(Q)
 
-    innovation_meas = []
-    for i in range(len(measurement_data)):
-        cur_meas = measurement_data[i]
-        cur_gth = ground_truth_data[i]
-        cur_ground_truth = np.array([cur_gth[0][0],cur_gth[1][0],cur_gth[2][0],cur_gth[5][0],cur_gth[6][0],cur_gth[7][0],cur_gth[8][0],cur_gth[9][0],cur_gth[10][0],cur_gth[11][0]]).reshape(10,1)
-        innovation_meas.append(cur_ground_truth.reshape(10,1) - cur_meas.reshape(10,1))
-    innovation_array = np.array(innovation_meas)
-    num_samples = innovation_array.shape[0]
-    innovation_array_2d = innovation_array.reshape(num_samples, -1)
+innovation_meas = []
+for i in range(len(measurement_data)):
+    cur_meas = measurement_data[i]
+    cur_gth = ground_truth_data[i]
+    cur_ground_truth = np.array([cur_gth[0][0],cur_gth[1][0],cur_gth[2][0],cur_gth[5][0],cur_gth[6][0],cur_gth[7][0],cur_gth[8][0],cur_gth[9][0],cur_gth[10][0],cur_gth[11][0]]).reshape(10,1)
+    innovation_meas.append(cur_ground_truth.reshape(10,1) - cur_meas.reshape(10,1))
+innovation_array = np.array(innovation_meas)
+num_samples = innovation_array.shape[0]
+innovation_array_2d = innovation_array.reshape(num_samples, -1)
 
-    # Calculate the process noise covariance matrix Q
-    R = np.var(innovation_array_2d, axis=0)
-    # Create a diagonal matrix with the diagonal values
-    R = np.diag(R)
+# Calculate the process noise covariance matrix Q
+R = np.var(innovation_array_2d, axis=0)
+# Create a diagonal matrix with the diagonal values
+R = np.diag(R)
 
+with open(dir_path + '/data_collection/trajectories/saved_trajectories.pkl', 'rb') as f:
+    data_collection = pickle.load(f)
+data_collection_dict = {}
 
+for k in range(len(data_collection)):
+    cur_traj = data_collection[k+1]
+    print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {k+1}'{reset_color_code}")
+    p_list_est = cur_traj['p_list_est']
+    p_list_ref = cur_traj['p_list_ref']
+    dp_list = cur_traj['dp_list']
+    imu_list = cur_traj['imu_list']
+    f_list = cur_traj['f_list']
+    contact_list = cur_traj['contact_list']
+    t265_list = cur_traj['t265_list']
+    mocap_list = cur_traj['mocap_list']
+    mocap_list_2 = cur_traj['mocap_list']
+    time_list = cur_traj['time_list']
+    traj_length = len(p_list_ref)
     KF2 = Kalman_Filter()
     x_start = mocap_list[0]
     KF2.x[:] = x_start
@@ -256,9 +273,16 @@ for k in range(len(data_collection)):
         drz_t265.append(t265[11][0])
 
         state_INPUT.append([x[0][0], x[1][0], x[2][0], x[3][0], x[4][0], x[5][0], x[6][0], x[7][0], x[8][0], x[9][0], x[10][0], x[11][0],
-                            imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0], imu_list[i][10][0], imu_list[i][11][0],
-                            KF2.f[0,0], KF2.f[1,0], KF2.f[2,0], KF2.f[3,0], KF2.f[4,0], KF2.f[5,0],
-                            KF2.f[6,0], KF2.f[7,0], KF2.f[8,0], KF2.f[9,0], KF2.f[10,0], KF2.f[11,0]])
+                            imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0],
+                            imu_list[i][10][0], imu_list[i][11][0],
+                            KF2.f[0, 0], KF2.f[1, 0], KF2.f[2, 0], KF2.f[3, 0], KF2.f[4, 0], KF2.f[5, 0],
+                            KF2.f[6, 0], KF2.f[7, 0], KF2.f[8, 0], KF2.f[9, 0], KF2.f[10, 0], KF2.f[11, 0],
+                            p[0, 0], p[1, 0], p[2, 0], p[3, 0], p[4, 0], p[5, 0], p[6, 0], p[7, 0], p[8, 0], p[9, 0],
+                            p[10, 0], p[11, 0],
+                            dp[0, 0], dp[1, 0], dp[2, 0], dp[3, 0], dp[4, 0], dp[5, 0], dp[6, 0], dp[7, 0], dp[8, 0],
+                            dp[9, 0], dp[10, 0], dp[11, 0],
+                            imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
+                            contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
 
         state_MOCAP.append([thx_mocap[i],thy_mocap[i],thz_mocap[i],rx_mocap[i],ry_mocap[i],rz_mocap[i],dthx_mocap[i],dthy_mocap[i],dthz_mocap[i],drx_mocap[i],dry_mocap[i],drz_mocap[i]])
         state_T265.append([thx_t265[i],thy_t265[i],thz_t265[i],rx_t265[i],ry_t265[i],rz_t265[i],dthx_t265[i],dthy_t265[i],dthz_t265[i],drx_t265[i],dry_t265[i],drz_t265[i]])
