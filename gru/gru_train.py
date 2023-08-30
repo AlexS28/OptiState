@@ -262,11 +262,10 @@ for i in range(num_models):
             labels_array = labels.cpu().numpy()
             ground_truth_array = np.zeros((outputs_array.shape[0],24))
             for l in range(outputs_array.shape[0]):
-                error_array = outputs_array[l,0:12].reshape(12, 1) - labels_array[l,:].reshape(12, 1)
+                error_array = np.abs(outputs_array[l,0:12].reshape(12, 1) - labels_array[l,:].reshape(12, 1))
                 ground_truth_array[l,0:12] = labels_array[l,0:12]
                 ground_truth_array[l,12:] = error_array.reshape(12,)
-            ground_truth_tensor = torch.from_numpy(ground_truth_array).requires_grad_().to(device).float()
-
+            ground_truth_tensor = torch.from_numpy(ground_truth_array).to(device,dtype=torch.float32)
             loss = criterion(outputs, ground_truth_tensor)
             # Backward and optimize
             optimizer.zero_grad()
@@ -296,14 +295,14 @@ for i in range(num_models):
 
 
 plt.figure(1)
-plt.plot(loss_list_training)
+plt.plot(loss_list_training_mean)
 plt.title('Loss on training set: State')
 plt.xlabel('Data points')
 plt.ylabel('Loss')
 plt.show()
 
 dataset_save = {
-    'loss': loss_list_training,
+    'loss': loss_list_training_mean,
 }
 mat_file_path = dir_path + '/OptiState/data_results/gru_1_loss_results.mat'
 # Save the datasets to the .mat file

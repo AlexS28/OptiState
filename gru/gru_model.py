@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torch.nn as nn
+import torch
 
 # Fully connected neural network with one hidden layer
 class RNN(nn.Module):

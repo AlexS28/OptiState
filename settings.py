@@ -2,7 +2,7 @@ import numpy as np
 class INITIAL_PARAMS:
     # OptiState settings
     # Train without vision
-    USE_VISION = False
+    USE_VISION = True
     # Discretized time of data collection
     DT = 0.01
     # Robot height, defined from ground to CoM of in meters
