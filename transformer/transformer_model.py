@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed, Block
-from transformer.pos_embed import get_2d_sincos_pos_embed
+from pos_embed import get_2d_sincos_pos_embed
 
 class Transformer_Autoencoder(nn.Module):
     def __init__(self, img_size=224, patch_size=16, in_chans=1,

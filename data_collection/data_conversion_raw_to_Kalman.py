@@ -20,6 +20,7 @@ from settings import INITIAL_PARAMS
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 folder_path = dir_path + '/OptiState/data_collection/trajectories/'
 file_list = os.listdir(folder_path)
+file_list = sorted(file_list)
 data_collection = {}
 # Create a directory to save images
 combined_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_combined'
@@ -29,20 +30,25 @@ if not os.path.exists(combined_image_directory):
 filter_horizon_t265 = INITIAL_PARAMS.FILTER_HORIZON_T265
 filter_horizon_mocap = INITIAL_PARAMS.FILTER_HORIZON_MOCAP
 cutoff = INITIAL_PARAMS.DATA_CUTOFF_START
-end_cutoff = INITIAL_PARAMS.DATA_CUTOFF_END
+end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END)
 dt = INITIAL_PARAMS.DT
 
 # ANSI escape code for orange text
 orange_color_code = '\033[93m'
 reset_color_code = '\033[0m'
-
 traj_num = 1
 image_iteration = 1
 for file_name in file_list:
     if file_name.endswith(".mat"):
         print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {traj_num}'{reset_color_code}")
         file_path = os.path.join(folder_path, file_name)
+
+        if traj_num >= 11 and traj_num < 16:
+            end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END_2)
+        else:
+            end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END)
         data = scipy.io.loadmat(file_path)
+
         # we first plot to double check
         data_p_est = data['foot_state_history']
         data_p_ref = data['footSteps_ref']
@@ -52,6 +58,7 @@ for file_name in file_list:
         data_liftLeg = data['liftLeg_ref']
         data_t265 = data['body_state_history']
         data_time = data['time_history']
+        data_imu = data['imu']
         data_encoder = data['encoder_history']
         data_depth = data['depth4']
         data_mocap = data['mocap_history']
@@ -67,6 +74,7 @@ for file_name in file_list:
         mocap_list = []
         depth_list = []
         time_list = []
+        ref_list = []
 
         def quaternion_2_euler(quaternion):
             """ quaternion 2 euler
@@ -128,9 +136,27 @@ for file_name in file_list:
 
             cur_mocap_pos = data_mocap[i,0:3]/1000.0 #- initial_mocap_pos_correct
             cur_mocap_quat = data_mocap[i,3:]
-            cur_mocap_R = R.from_quat(cur_mocap_quat)
-            cur_mocap_relative = initial_mocap_rot.inv()*cur_mocap_R
-            data_mocap[i,3:] = cur_mocap_relative.as_quat()
+
+            if np.all(cur_mocap_pos==0) or np.all(cur_mocap_quat==0):
+                try:
+                    cur_mocap_pos = data_mocap[i-1, 0:3] / 1000.0  # - initial_mocap_pos_correct
+                    cur_mocap_quat = data_mocap[i-1, 3:]
+                    cur_mocap_R = R.from_quat(cur_mocap_quat)
+                    cur_mocap_relative = initial_mocap_rot.inv() * cur_mocap_R
+                    data_mocap[i, 3:] = cur_mocap_relative.as_quat()
+                except:
+                    print('EXCEPTION REACHED, MOCAP DATA INCORRECT')
+                    for m in range(i, len(data_mocap)):
+                        if np.all(cur_mocap_pos != 0) or np.all(cur_mocap_quat != 0):
+                            cur_mocap_pos = data_mocap[i, 0:3] / 1000.0  # - initial_mocap_pos_correct
+                            cur_mocap_quat = data_mocap[i, 3:]
+                            cur_mocap_R = R.from_quat(cur_mocap_quat)
+                            cur_mocap_relative = initial_mocap_rot.inv()*cur_mocap_R
+                            data_mocap[i,3:] = cur_mocap_relative.as_quat()
+            else:
+                cur_mocap_R = R.from_quat(cur_mocap_quat)
+                cur_mocap_relative = initial_mocap_rot.inv() * cur_mocap_R
+                data_mocap[i, 3:] = cur_mocap_relative.as_quat()
             #matrix_relative = cur_mocap_relative.as_matrix()
             #T_mocap_t265[0:3,0:3] = matrix_relative
             cur_mocap_pos = np.matmul(np.linalg.inv(T_mocap_t265),np.array([cur_mocap_pos[0],cur_mocap_pos[1],cur_mocap_pos[2],1]).reshape(4,1))
@@ -238,6 +264,8 @@ for file_name in file_list:
                                         cur_vel_x, cur_vel_y, cur_vel_z
                                         ]).reshape(12,1))
 
+            ref_list.append(np.array([data_bodyR_ref[i,0],data_bodyR_ref[i,1],data_bodyR_ref[i,2],data_bodyCM_ref[i,0],data_bodyCM_ref[i,1],data_bodyCM_ref[i,2],cur_vel_x,cur_vel_y,0.0]))
+
         thx_t265 = []
         thy_t265 = []
         thz_t265 = []
@@ -328,7 +356,7 @@ for file_name in file_list:
 
             time_list.append(data_time[0,i])
             # thx, thy, thz, dthx, dthy, dthz, ddthx, ddthy, ddthz, ddx, ddy, ddz
-            imu_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],data_t265[i,6],data_t265[i,7],data_t265[i,8],cur_ddthx,cur_ddthy,cur_ddthz,cur_ax,cur_ay,cur_az]).reshape(12,1))
+            imu_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],data_t265[i,6],data_t265[i,7],data_t265[i,8],data_imu[i,3],data_imu[i,4],data_imu[i,5],data_imu[i,0],data_imu[i,1],data_imu[i,2]]).reshape(12,1))
 
         plt.figure(1)
         plt.plot(thx_t265)
@@ -352,25 +380,19 @@ for file_name in file_list:
         plt.plot(dthx_t265)
         plt.plot(dthy_t265)
         plt.plot(dthz_t265)
-        plt.legend(['dthx 265','dthy 265', 'dthz 265'])
+        plt.plot(dthx_mocap_plot)
+        plt.plot(dthy_mocap_plot)
+        plt.plot(dthz_mocap_plot)
+        plt.legend(['dthx 265','dthy 265', 'dthz 265','dthx mocap', 'dthy mocap', 'dthz mocap'])
 
         plt.figure(4)
         plt.plot(drx_t265)
         plt.plot(dry_t265)
         plt.plot(drz_t265)
-        plt.legend(['drx 265','dry 265', 'drz 265'])
-
-        plt.figure(5)
         plt.plot(drx_mocap_plot)
         plt.plot(dry_mocap_plot)
         plt.plot(drz_mocap_plot)
-        plt.legend(['drx mocap', 'dry mocap', 'drz mocap'])
-
-        plt.figure(6)
-        plt.plot(dthx_mocap_plot)
-        plt.plot(dthy_mocap_plot)
-        plt.plot(dthz_mocap_plot)
-        plt.legend(['dthx mocap', 'dthy mocap', 'dthz mocap'])
+        plt.legend(['drx 265','dry 265', 'drz 265','drx mocap','dry mocap', 'drz mocap'])
 
         # plotting reference footsteps (should be in body frame)
         p1x_ref_plot = []
@@ -536,7 +558,7 @@ for file_name in file_list:
 
         # save trajectory into pkl file
         data_collection.update({traj_num:{'p_list_est': p_list_est, 'p_list_ref': p_list_ref, 'dp_list': dp_list, 'imu_list': imu_list, 'f_list': f_list,
-                                   'contact_list': contact_list, 't265_list': t265_list, 'mocap_list': mocap_list, 'time_list': time_list}})
+                                   'contact_list': contact_list, 't265_list': t265_list, 'mocap_list': mocap_list, 'ref_list': ref_list, 'time_list': time_list}})
 
         with open(dir_path+'/OptiState/data_collection/trajectories/saved_trajectories.pkl', 'wb') as f:
             pickle.dump(data_collection, f)

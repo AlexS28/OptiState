@@ -15,6 +15,8 @@ from settings import INITIAL_PARAMS
 import os
 from kalman_filter.kalman_filter import Kalman_Filter
 
+
+load_Q_R = True
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 traj_num = 0
 filter_horizon = INITIAL_PARAMS.FILTER_HORIZON_KALMAN
@@ -26,88 +28,98 @@ with open(dir_path + '/data_collection/trajectories/saved_trajectories.pkl', 'rb
     data_collection = pickle.load(f)
 data_collection_dict = {}
 
-for k in range(len(data_collection)):
-    cur_traj = data_collection[k+1]
-    print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {k+1}'{reset_color_code}")
-    p_list_est = cur_traj['p_list_est']
-    p_list_ref = cur_traj['p_list_ref']
-    dp_list = cur_traj['dp_list']
-    imu_list = cur_traj['imu_list']
-    f_list = cur_traj['f_list']
-    contact_list = cur_traj['contact_list']
-    t265_list = cur_traj['t265_list']
-    mocap_list = cur_traj['mocap_list']
-    mocap_list_2 = cur_traj['mocap_list']
-    time_list = cur_traj['time_list']
-    traj_length = len(p_list_ref)
+if not load_Q_R:
+    for k in range(len(data_collection)):
+        cur_traj = data_collection[k+1]
+        print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {k+1}'{reset_color_code}")
+        p_list_est = cur_traj['p_list_est']
+        p_list_ref = cur_traj['p_list_ref']
+        dp_list = cur_traj['dp_list']
+        imu_list = cur_traj['imu_list']
+        f_list = cur_traj['f_list']
+        contact_list = cur_traj['contact_list']
+        t265_list = cur_traj['t265_list']
+        mocap_list = cur_traj['mocap_list']
+        mocap_list_2 = cur_traj['mocap_list']
+        time_list = cur_traj['time_list']
+        traj_length = len(p_list_ref)
 
-    KF = Kalman_Filter()
-    x_start = mocap_list[0]
-    KF.x[:] = x_start
-
-
-    model_data = []
-    ground_truth_data = []
-    measurement_data = []
-
-    time = []
-    time.append(0)
-
-    for i in range(traj_length-1):
-        # ground truth data from mocap
-        ground_truth = mocap_list[i]
-        ground_truth_t1 = mocap_list[i+1]
-
-        # initiate the x for propagating the model
-        KF.x = ground_truth.reshape(12,1)
-        p = p_list_est[i].reshape(12,1)
-        x_ref = mocap_list[i].reshape(12,1)
-        contact_ref = contact_list[i].reshape(4,1)
-        if i != traj_length-1:
-            time.append(time[-1]+time_list[i+1]-time_list[i])
-        KF.predict_mpc(p,x_ref,contact_ref)
-
-        contact_ref = contact_list[i+1].reshape(4, 1)
-        p_cur = p_list_est[i+1]
-        dp_cur = dp_list[i+1]
-        imu = imu_list[i+1][0:6]
-        odom = KF.get_odom(p_cur,dp_cur,contact_ref,imu)
-        KF.set_measurements(imu, odom)
+        KF = Kalman_Filter()
+        x_start = mocap_list[0]
+        KF.x[:] = x_start
 
 
+        model_data = []
+        ground_truth_data = []
+        measurement_data = []
 
-        ground_truth_data.append(ground_truth_t1)
-        measurement_data.append(KF.z)
-        model_data.append(KF.x_model)
+        time = []
+        time.append(0)
 
-# Assuming model_data and ground_truth_data are your lists of lists containing 12x1 numpy arrays
-# Convert the lists of lists into a single numpy array for each dataset
-# Estimate the innovation (residual) between predictions and measurements
-innovation_model = []
-for i in range(len(model_data)):
-    innovation_model.append(ground_truth_data[i].reshape(12,1) - model_data[i].reshape(12,1))
-innovation_array = np.array(innovation_model)
-num_samples = innovation_array.shape[0]
-innovation_array_2d = innovation_array.reshape(num_samples, -1)
+        for i in range(traj_length-1):
+            # ground truth data from mocap
+            ground_truth = mocap_list[i]
+            ground_truth_t1 = mocap_list[i+1]
 
-# Calculate the process noise covariance matrix Q
-Q = np.var(innovation_array_2d, axis=0)
-Q = np.diag(Q)
+            # initiate the x for propagating the model
+            KF.x = ground_truth.reshape(12,1)
+            p = p_list_est[i].reshape(12,1)
+            x_ref = mocap_list[i].reshape(12,1)
+            contact_ref = contact_list[i].reshape(4,1)
+            if i != traj_length-1:
+                time.append(time[-1]+time_list[i+1]-time_list[i])
+            KF.predict_mpc(p,x_ref,contact_ref)
 
-innovation_meas = []
-for i in range(len(measurement_data)):
-    cur_meas = measurement_data[i]
-    cur_gth = ground_truth_data[i]
-    cur_ground_truth = np.array([cur_gth[0][0],cur_gth[1][0],cur_gth[2][0],cur_gth[5][0],cur_gth[6][0],cur_gth[7][0],cur_gth[8][0],cur_gth[9][0],cur_gth[10][0],cur_gth[11][0]]).reshape(10,1)
-    innovation_meas.append(cur_ground_truth.reshape(10,1) - cur_meas.reshape(10,1))
-innovation_array = np.array(innovation_meas)
-num_samples = innovation_array.shape[0]
-innovation_array_2d = innovation_array.reshape(num_samples, -1)
+            contact_ref = contact_list[i+1].reshape(4, 1)
+            p_cur = p_list_est[i+1]
+            dp_cur = dp_list[i+1]
+            imu = imu_list[i+1][0:6]
+            odom = KF.get_odom(p_cur,dp_cur,contact_ref,imu)
+            KF.set_measurements(imu, odom)
 
-# Calculate the process noise covariance matrix Q
-R = np.var(innovation_array_2d, axis=0)
-# Create a diagonal matrix with the diagonal values
-R = np.diag(R)
+
+
+            ground_truth_data.append(ground_truth_t1)
+            measurement_data.append(KF.z)
+            model_data.append(KF.x_model)
+
+    # Assuming model_data and ground_truth_data are your lists of lists containing 12x1 numpy arrays
+    # Convert the lists of lists into a single numpy array for each dataset
+    # Estimate the innovation (residual) between predictions and measurements
+    innovation_model = []
+    for i in range(len(model_data)):
+        innovation_model.append(ground_truth_data[i].reshape(12,1) - model_data[i].reshape(12,1))
+    innovation_array = np.array(innovation_model)
+    num_samples = innovation_array.shape[0]
+    innovation_array_2d = innovation_array.reshape(num_samples, -1)
+
+    # Calculate the process noise covariance matrix Q
+    Q = np.var(innovation_array_2d, axis=0)
+    Q = np.diag(Q)
+
+    innovation_meas = []
+    for i in range(len(measurement_data)):
+        cur_meas = measurement_data[i]
+        cur_gth = ground_truth_data[i]
+        cur_ground_truth = np.array([cur_gth[0][0],cur_gth[1][0],cur_gth[2][0],cur_gth[5][0],cur_gth[6][0],cur_gth[7][0],cur_gth[8][0],cur_gth[9][0],cur_gth[10][0],cur_gth[11][0]]).reshape(10,1)
+        innovation_meas.append(cur_ground_truth.reshape(10,1) - cur_meas.reshape(10,1))
+    innovation_array = np.array(innovation_meas)
+    num_samples = innovation_array.shape[0]
+    innovation_array_2d = innovation_array.reshape(num_samples, -1)
+
+    # Calculate the process noise covariance matrix Q
+    R = np.var(innovation_array_2d, axis=0)
+    # Create a diagonal matrix with the diagonal values
+    R = np.diag(R)
+
+
+    # Save the arrays to a pickle file
+    with open(dir_path + '/data_collection/trajectories/Q_R.pkl', 'wb') as file:
+        pickle.dump((Q, R), file)
+else:
+    # To open and load the arrays from the pickle file
+    with open(dir_path + '/data_collection/trajectories/Q_R.pkl', 'rb') as file:
+        Q, R = pickle.load(file)
 
 with open(dir_path + '/data_collection/trajectories/saved_trajectories.pkl', 'rb') as f:
     data_collection = pickle.load(f)
@@ -126,6 +138,8 @@ for k in range(len(data_collection)):
     mocap_list = cur_traj['mocap_list']
     mocap_list_2 = cur_traj['mocap_list']
     time_list = cur_traj['time_list']
+    ref_list = cur_traj['ref_list']
+
     traj_length = len(p_list_ref)
     KF2 = Kalman_Filter()
     x_start = mocap_list[0]
@@ -188,7 +202,8 @@ for k in range(len(data_collection)):
         dp = dp_list[i].reshape(12,1)
         imu = imu_list[i][0:6].reshape(6,1)
         contact_ref = contact_list[i].reshape(4,1)
-        x_ref = mocap_list[i].reshape(12, 1)
+        #x_ref = mocap_list[i].reshape(12, 1) # TODO: CHANGE BACK IF IT DOES NOT WORK
+        x_ref = ref_list[i].reshape(12,1)
         x = KF2.estimate_state_mpc(imu,p,dp,x_ref,contact_ref)
         p_trace.append(KF2.P_trace)
         K_gain.append(KF2.K_gain)
