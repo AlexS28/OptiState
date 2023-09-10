@@ -44,7 +44,7 @@ transform = transforms.Compose([
 # Open the saved image using PIL
 image_list = []
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_traj_1"
+folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_traj_18"
 
 import re
 
@@ -114,4 +114,3 @@ print("Encoded 1D tensor shape:", encoded_1d.shape)
 encoded_1d_np = encoded_1d.numpy()
 
 print(encoded_1d_np)
-

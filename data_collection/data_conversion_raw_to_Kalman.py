@@ -264,7 +264,7 @@ for file_name in file_list:
                                         cur_vel_x, cur_vel_y, cur_vel_z
                                         ]).reshape(12,1))
 
-            ref_list.append(np.array([data_bodyR_ref[i,0],data_bodyR_ref[i,1],data_bodyR_ref[i,2],data_bodyCM_ref[i,0],data_bodyCM_ref[i,1],data_bodyCM_ref[i,2],cur_vel_x,cur_vel_y,0.0]))
+            ref_list.append(np.array([data_bodyR_ref[i,0],data_bodyR_ref[i,1],data_bodyR_ref[i,2],data_bodyCM_ref[i,0],data_bodyCM_ref[i,1],data_bodyCM_ref[i,2],0.0,0.0,0.0,cur_vel_x,cur_vel_y,0.0]).reshape(12,1))
 
         thx_t265 = []
         thy_t265 = []

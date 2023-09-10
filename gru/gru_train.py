@@ -14,18 +14,19 @@ from scipy import io
 from settings import INITIAL_PARAMS
 import copy
 # specify the dataset number to train on
-dataset_train_number = [1,2]
-total_number_datasets = [1,2,3,4,5,6,7]
+dataset_train_number = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+total_number_datasets = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
 # specify number of models to train
 num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
-training_percentage = 0.8
+training_percentage = 0.95
 # Hyper-parameters for state estimate
 num_outputs = 12+12
 if INITIAL_PARAMS.USE_VISION:
     input_size = 64+128
 else:
     input_size = 64
+
 sequence_length = 20
 hidden_size = 128+64
 num_layers = 4
@@ -285,6 +286,14 @@ for i in range(num_models):
         ax.set_ylabel('Mean Loss')
         ax.legend()
         plt.pause(0.001)  # Adjust the pause duration as needed
+
+        if epoch % 100 == 0:
+            if INITIAL_PARAMS.USE_VISION:
+                # save your model
+                print("SAVING MODEL")
+                torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}_vision.pth')
+            else:
+                torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}.pth')
 
     if INITIAL_PARAMS.USE_VISION:
         # save your model

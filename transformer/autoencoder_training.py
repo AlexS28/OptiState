@@ -153,4 +153,3 @@ np.savez(training_log_save, train=np.array(train_losses), val=np.array(val_losse
 
 
 
-

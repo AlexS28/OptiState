@@ -14,7 +14,7 @@ import numpy as np
 from settings import INITIAL_PARAMS
 import os
 from kalman_filter.kalman_filter import Kalman_Filter
-
+from scipy import io
 
 load_Q_R = True
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -125,6 +125,8 @@ with open(dir_path + '/data_collection/trajectories/saved_trajectories.pkl', 'rb
     data_collection = pickle.load(f)
 data_collection_dict = {}
 
+p_trace_list = []
+
 for k in range(len(data_collection)):
     cur_traj = data_collection[k+1]
     print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {k+1}'{reset_color_code}")
@@ -142,7 +144,7 @@ for k in range(len(data_collection)):
 
     traj_length = len(p_list_ref)
     KF2 = Kalman_Filter()
-    x_start = mocap_list[0]
+    x_start = mocap_list[100]
     KF2.x[:] = x_start
     KF2.Q = Q
     KF2.R = R
@@ -191,61 +193,69 @@ for k in range(len(data_collection)):
     dthy_t265 = []
     dthz_t265 = []
 
-
     state_INPUT = []
     state_MOCAP = []
     state_T265 = []
     p_trace = []
     K_gain = []
-    for i in range(traj_length):
+    time = []
+    time.append(0)
+    for i in range(100,traj_length):
         p = p_list_est[i].reshape(12,1)
         dp = dp_list[i].reshape(12,1)
         imu = imu_list[i][0:6].reshape(6,1)
         contact_ref = contact_list[i].reshape(4,1)
         #x_ref = mocap_list[i].reshape(12, 1) # TODO: CHANGE BACK IF IT DOES NOT WORK
         x_ref = ref_list[i].reshape(12,1)
+
         x = KF2.estimate_state_mpc(imu,p,dp,x_ref,contact_ref)
         p_trace.append(KF2.P_trace)
         K_gain.append(KF2.K_gain)
+        if i != traj_length - 1:
+            time.append(time[-1] + time_list[i + 1] - time_list[i])
 
-        if i == 0:
-            moving_average_dthx = [x[6][0]] * filter_horizon
-            moving_average_dthy = [x[7][0]] * filter_horizon
-            moving_average_dthz = [x[8][0]] * filter_horizon
+        if i == 100:
+            moving_average_dthx = [x[3][0]] * filter_horizon
+            moving_average_dthy = [x[4][0]] * filter_horizon
+            moving_average_dthz = [x[5][0]] * filter_horizon
 
-            moving_average_dx = [x[9][0]] * filter_horizon
-            moving_average_dy = [x[10][0]] * filter_horizon
-            moving_average_dz = [x[11][0]] * filter_horizon
+            #moving_average_dx = [x[9][0]] * filter_horizon
+            #moving_average_dy = [x[10][0]] * filter_horizon
+            #moving_average_dz = [x[11][0]] * filter_horizon
 
-        moving_average_dx.append(x[9])
-        moving_average_dy.append(x[10])
-        moving_average_dz.append(x[11])
+        #moving_average_dx.append(x[9])
+        #moving_average_dy.append(x[10])
+        #moving_average_dz.append(x[11])
 
-        moving_average_dthx.append(x[6])
-        moving_average_dthy.append(x[7])
-        moving_average_dthz.append(x[8])
+        moving_average_dthx.append(x[3])
+        moving_average_dthy.append(x[4])
+        moving_average_dthz.append(x[5])
 
-        del moving_average_dx[0]
-        del moving_average_dy[0]
-        del moving_average_dz[0]
+        #del moving_average_dx[0]
+        #del moving_average_dy[0]
+        #del moving_average_dz[0]
         del moving_average_dthx[0]
         del moving_average_dthy[0]
         del moving_average_dthz[0]
 
-        x[6] = sum(moving_average_dthx) / len(moving_average_dthx)
-        x[7] = sum(moving_average_dthy) / len(moving_average_dthy)
-        x[8] = sum(moving_average_dthz) / len(moving_average_dthz)
+        x[3] = sum(moving_average_dthx) / len(moving_average_dthx)
+        x[4] = sum(moving_average_dthy) / len(moving_average_dthy)
+        x[5] = sum(moving_average_dthz) / len(moving_average_dthz)
 
-        x[9] = sum(moving_average_dx)/len(moving_average_dx)
-        x[10] = sum(moving_average_dy)/len(moving_average_dy)
-        x[11] = sum(moving_average_dz)/len(moving_average_dz)
+        #x[9] = sum(moving_average_dx)/len(moving_average_dx)
+        #x[10] = sum(moving_average_dy)/len(moving_average_dy)
+        #x[11] = sum(moving_average_dz)/len(moving_average_dz)
 
-        KF2.x[6] = x[6]
-        KF2.x[7] = x[7]
-        KF2.x[8] = x[8]
-        KF2.x[9] = x[9]
-        KF2.x[10] = x[10]
-        KF2.x[11] = x[11]
+        KF2.x[3] = x[3]
+        KF2.x[4] = x[4]
+        KF2.x[5] = x[5]
+
+        #KF2.x[6] = x[6]
+        #KF2.x[7] = x[7]
+        #KF2.x[8] = x[8]
+        #KF2.x[9] = x[9]
+        #KF2.x[10] = x[10]
+        #KF2.x[11] = x[11]
 
         # ground truth data from mocap
         ground_truth = mocap_list[i]
@@ -299,8 +309,8 @@ for k in range(len(data_collection)):
                             imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
                             contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
 
-        state_MOCAP.append([thx_mocap[i],thy_mocap[i],thz_mocap[i],rx_mocap[i],ry_mocap[i],rz_mocap[i],dthx_mocap[i],dthy_mocap[i],dthz_mocap[i],drx_mocap[i],dry_mocap[i],drz_mocap[i]])
-        state_T265.append([thx_t265[i],thy_t265[i],thz_t265[i],rx_t265[i],ry_t265[i],rz_t265[i],dthx_t265[i],dthy_t265[i],dthz_t265[i],drx_t265[i],dry_t265[i],drz_t265[i]])
+        state_MOCAP.append([ground_truth[0][0],ground_truth[1][0],ground_truth[2][0],ground_truth[3][0],ground_truth[4][0],ground_truth[5][0],ground_truth[6][0],ground_truth[7][0],ground_truth[8][0],ground_truth[9][0],ground_truth[10][0],ground_truth[11][0]])
+        state_T265.append([t265[0][0],t265[1][0],t265[2][0],t265[3][0],t265[4][0],t265[5][0],t265[6][0],t265[7][0],t265[8][0],t265[9][0],t265[10][0],t265[11][0]])
 
 
     plt.figure(1)
@@ -327,13 +337,13 @@ for k in range(len(data_collection)):
     plt.figure(4)
     plt.plot(time,rx_est)
     plt.plot(time,rx_mocap)
-    plt.plot(time, rx_t265)
+    plt.plot(time,rx_t265)
     plt.plot(time,ry_est)
     plt.plot(time,ry_mocap)
-    plt.plot(time, ry_t265)
+    plt.plot(time,ry_t265)
     plt.plot(time,rz_est)
     plt.plot(time,rz_mocap)
-    plt.plot(time, rz_t265)
+    plt.plot(time,rz_t265)
     plt.legend(['est x','vicon x','t265 x', 'est y','vicon y', 't265 y','est z','vicon z','t265 z'])
     plt.title('position')
 
@@ -341,12 +351,12 @@ for k in range(len(data_collection)):
     plt.plot(time,drx_est)
     plt.plot(time,drx_mocap)
     plt.plot(time,drx_t265)
-    plt.plot(time,dry_est)
-    plt.plot(time,dry_mocap)
-    plt.plot(time,dry_t265)
-    plt.plot(time,drz_est)
-    plt.plot(time,drz_mocap)
-    plt.plot(time,drz_t265)
+    #plt.plot(time,dry_est)
+    #plt.plot(time,dry_mocap)
+    #plt.plot(time,dry_t265)
+    #plt.plot(time,drz_est)
+    #plt.plot(time,drz_mocap)
+    #plt.plot(time,drz_t265)
     plt.legend(['est dx','vicon dx','t265 dx','est dy', 'vicon dy', 't265 dy', 'est dz', 'vicon dz', 't265 dz',])
     plt.title('velocity')
 
@@ -381,3 +391,13 @@ for k in range(len(data_collection)):
 
     with open(dir_path+'/data_collection/trajectories/rnn_data.pkl', 'wb') as f:
         pickle.dump(data_collection_dict, f)
+
+    p_trace_list.append(p_trace)
+
+p_trace_list = np.array(p_trace_list,dtype=object)
+dataset_save = {
+    'p_trace': p_trace_list,
+}
+mat_file_path = dir_path + '/data_results/p_trace_data.mat'
+
+io.savemat(mat_file_path, dataset_save)

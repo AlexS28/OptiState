@@ -371,7 +371,7 @@ mae_t265 = np.mean(absolute_errors, axis=0)
 # Print or use the mae and rmse arrays
 print("Mean Absolute Error for each column (t265):", mae_t265)
 
-mat_file_path = dir_path + '/OptiState/data_results/test_results_flat.mat'
+mat_file_path = dir_path + '/OptiState/data_results/test_results.mat'
 # Save the datasets to the .mat file
 io.savemat(mat_file_path, dataset_save)
 
@@ -380,6 +380,6 @@ dataset_save = {
     'error_KF': mae_KF,
     'error_t265': mae_t265
 }
-mat_file_path = dir_path + '/OptiState/data_results/test_results_flat_error.mat'
+mat_file_path = dir_path + '/OptiState/data_results/test_results_error.mat'
 
 io.savemat(mat_file_path, dataset_save)
