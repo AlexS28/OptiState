@@ -1,2 +1,3 @@
 # OptiState
-State estimator for legged robots using optical flow and learning.
+State Estimation of Legged Robots using Gated Networks
+with Transformer-based Vision and Kalman Filtering
