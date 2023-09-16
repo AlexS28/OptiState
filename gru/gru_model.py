@@ -16,7 +16,7 @@ class RNN(nn.Module):
         self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         # self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
-        self.dropout = nn.Dropout(0.6)  # Add a dropout layer
+        #self.dropout = nn.Dropout(0.3)  # Add a dropout layer
         self.evaluate = evaluate
         #self.softplus = nn.Softplus().to(self.device)
         #self.use_softplus = use_softplus
@@ -31,8 +31,8 @@ class RNN(nn.Module):
 
         # Forward propagate RNN
         out, _ = self.gru(x, h0)
-        if not self.evaluate:
-            out = self.dropout(out)
+        #if not self.evaluate:
+        #    out = self.dropout(out)
         # or:
         # out, _ = self.lstm(x, (h0,c0))
 

@@ -308,6 +308,17 @@ for k in range(len(data_collection)):
                             dp[9, 0], dp[10, 0], dp[11, 0],
                             imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
                             contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
+        """
+        state_INPUT.append(
+            [imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0],
+             imu_list[i][10][0], imu_list[i][11][0],
+             p[0, 0], p[1, 0], p[2, 0], p[3, 0], p[4, 0], p[5, 0], p[6, 0], p[7, 0], p[8, 0], p[9, 0],
+             p[10, 0], p[11, 0],
+             dp[0, 0], dp[1, 0], dp[2, 0], dp[3, 0], dp[4, 0], dp[5, 0], dp[6, 0], dp[7, 0], dp[8, 0],
+             dp[9, 0], dp[10, 0], dp[11, 0],
+             imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
+             contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
+        """
 
         state_MOCAP.append([ground_truth[0][0],ground_truth[1][0],ground_truth[2][0],ground_truth[3][0],ground_truth[4][0],ground_truth[5][0],ground_truth[6][0],ground_truth[7][0],ground_truth[8][0],ground_truth[9][0],ground_truth[10][0],ground_truth[11][0]])
         state_T265.append([t265[0][0],t265[1][0],t265[2][0],t265[3][0],t265[4][0],t265[5][0],t265[6][0],t265[7][0],t265[8][0],t265[9][0],t265[10][0],t265[11][0]])

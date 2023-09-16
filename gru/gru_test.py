@@ -13,7 +13,7 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 # specify the dataset number to test on
-dataset_test_number = [1,2]
+dataset_test_number = [1,7,12,19] # flat: 1, slippery: 7,incline: 12, rough terrain: 19
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 24
@@ -173,14 +173,18 @@ preds = []
 ground_truth = []
 preds_error_above = []
 preds_error_below = []
+computation_time = []
+import time
 
 with torch.no_grad():
     for inputs, labels in data_loader:
         # Move inputs and labels to device
         inputs = inputs.to(device)
         labels = labels.to(device)
+        start_time = time.time()
         # Forward pass
         outputs = model(inputs)
+        computation_time.append(time.time()-start_time)
         # Append predicted and ground truth values to respective lists
         preds_np = outputs[0,0:12].cpu().numpy().reshape(12,1)
         preds_error_np = outputs[0,12:].cpu().numpy().reshape(12,1)
@@ -198,6 +202,9 @@ ground_truth = np.array(ground_truth)
 preds_error_above = np.array(preds_error_above)
 preds_error_below = np.array(preds_error_below)
 
+computation_time = np.array(computation_time)
+print(np.mean(computation_time))
+print(np.std(computation_time))
 
 # Reshape predicted and ground truth arrays to have the same shape
 preds = preds.reshape(-1, 12)
@@ -341,7 +348,8 @@ plt.show()
 
 dataset_save = {
     'gru': preds,
-    'gru_error': preds_error_above,
+    'gru_error_above': preds_error_above,
+    'gru_error_below': preds_error_below,
     'kalman': input_KF,
     'mocap': ground_truth,
     't265': state_t265
@@ -354,11 +362,21 @@ dataset_save = {
 absolute_errors = np.abs(preds[:end_plot,0:12] - ground_truth[:end_plot,0:12])
 # Calculate the mean absolute error (MAE) for each column
 mae_gru = np.mean(absolute_errors, axis=0)
+
+# Calculate squared errors for each component
+squared_errors = (preds[:end_plot, 0:12] - ground_truth[:end_plot, 0:12])**2
+
+# Calculate the mean squared error (MSE) for each column
+mse_gru = np.mean(squared_errors, axis=0)
+
+# Calculate the root mean squared error (RMSE) for each column
+rmse_gru = np.sqrt(mse_gru)
+
 # Print or use the mae and rmse arrays
-print("Mean Absolute Error for each column (GRU):", mae_gru)
+print("Mean Absolute Error for each column (GRU):", rmse_gru)
 
 # Calculate absolute errors for each component
-absolute_errors = np.abs(input_KF[:end_plot,0:12] - ground_truth[:end_plot,0:12])
+absolute_errors = np.abs(input_KF[10:end_plot,0:12] - ground_truth[:end_plot-10,0:12])
 # Calculate the mean absolute error (MAE) for each column
 mae_KF = np.mean(absolute_errors, axis=0)
 # Print or use the mae and rmse arrays

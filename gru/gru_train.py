@@ -30,7 +30,7 @@ else:
 sequence_length = 20
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 1000
+num_epochs = 500
 batch_size = 64
 learning_rate = 0.0001
 

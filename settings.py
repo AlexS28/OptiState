@@ -21,7 +21,7 @@ class INITIAL_PARAMS:
     DATA_CUTOFF_END = 5000
     DATA_CUTOFF_END_2 = 1500
     # Define whether we want to visualize plots for data conversion scripts
-    VISUALIZE_DATA_CONVERSION = True
+    VISUALIZE_DATA_CONVERSION = False
     # Define the rotational inertia matrix of the robot in the CoM body frame (xx, yy, zz)
     Px = 55303643.08 / (10 ** 9)
     Py = 60119440.34 / (10 ** 9)
