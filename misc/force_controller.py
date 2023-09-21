@@ -1,8 +1,8 @@
-""" CONFIDENTIAL (C) Mitsubishi Electric Research Labs(MERL)
-% 2021
+"""
+% 2023
 % Alexander Schperberg
-% schperberg@merl.com
-% 06/20/22
+% aschperberg28@g.ucla.edu
+% 06/20/23
 """
 import pdb
 

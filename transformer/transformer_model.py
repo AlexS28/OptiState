@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed, Block
+import sys
+import os
+current_directory = os.getcwd()
+sys.path.append(current_directory+'/')
 from transformer.pos_embed import get_2d_sincos_pos_embed
 
 class Transformer_Autoencoder(nn.Module):
@@ -9,7 +13,6 @@ class Transformer_Autoencoder(nn.Module):
                  decoder_embed_dim=128, decoder_depth=3, decoder_num_heads=4,
                  mlp_ratio=4., norm_layer=nn.LayerNorm):
         super().__init__()
-
 
         self.in_chans = in_chans
         # --------------------------------------------------------------------------
@@ -170,39 +173,3 @@ class Transformer_Autoencoder(nn.Module):
         pred = self.forward_decoder(latent)  # [N, L, p*p*in_chans]
         loss = self.forward_loss(imgs, pred)
         return loss, pred
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

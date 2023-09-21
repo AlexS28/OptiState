@@ -56,7 +56,7 @@ class Kalman_Filter:
         self.g = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -9.81]).reshape(12, 1)
 
         # we calculate the discretized time of our model equation
-        self.dt = INITIAL_PARAMS.DT
+        self.dt = INITIAL_PARAMS.DT_mpc
 
         # model state
         self.x_model = INITIAL_PARAMS.STARTING_STATE
@@ -172,23 +172,6 @@ class Kalman_Filter:
         self.P = np.matmul(self.identity_large - np.matmul(self.K, self.H), self.P)
         self.P_trace = copy.deepcopy(np.trace(self.P))
         self.K_gain = copy.deepcopy(np.trace(self.K))
-
-    def estimate_state(self, imu, p, dp, contact, f):
-        # this function will estimate the state of the robot using the Kalman filter
-        # inputs are the current measurements:
-        # imu is a 6x1 array: thx, thy, thz, dthx, dthy, dthz
-        # odom is a 4x1 array: z, vx, vy, vz
-        # flow is a 3x1 array: dthz, vx, vy
-        # lidar is a 1x1 array: z
-        # p: 12x1 array (x,y,z) position per leg
-        # f: 12x1 array(x,y,z) ground reaction force per leg
-        # output: update state x
-        odom = self.get_odom(p,dp,contact,imu)
-        self.set_measurements(imu, odom)
-        self.predict(p,f)
-        self.update()
-
-        return self.x
 
     def estimate_state_mpc(self, imu, p, dp, body_ref, contact):
         odom = self.get_odom(p, dp, contact, imu)

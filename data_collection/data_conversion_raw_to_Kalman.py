@@ -27,8 +27,6 @@ combined_image_directory = dir_path + f'/OptiState/data_collection/trajectories/
 if not os.path.exists(combined_image_directory):
     os.makedirs(combined_image_directory)
 # moving average filter applied to velocity components
-filter_horizon_t265 = INITIAL_PARAMS.FILTER_HORIZON_T265
-filter_horizon_mocap = INITIAL_PARAMS.FILTER_HORIZON_MOCAP
 cutoff = INITIAL_PARAMS.DATA_CUTOFF_START
 end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END)
 dt = INITIAL_PARAMS.DT
@@ -152,8 +150,7 @@ for file_name in file_list:
                 cur_mocap_R = R.from_quat(cur_mocap_quat)
                 cur_mocap_relative = initial_mocap_rot.inv() * cur_mocap_R
                 data_mocap[i, 3:] = cur_mocap_relative.as_quat()
-            #matrix_relative = cur_mocap_relative.as_matrix()
-            #T_mocap_t265[0:3,0:3] = matrix_relative
+
             cur_mocap_pos = np.matmul(np.linalg.inv(T_mocap_t265),np.array([cur_mocap_pos[0],cur_mocap_pos[1],cur_mocap_pos[2],1]).reshape(4,1))
             cur_mocap_pos[2] = cur_mocap_pos[2]+0.28
             data_mocap[i,0:3] = cur_mocap_pos[0:3].reshape(3,)
@@ -195,47 +192,6 @@ for file_name in file_list:
             cur_dthy = (cur_euler_t1[1] - cur_euler_t0[1]) / dt
             cur_dthz = (cur_euler_t1[2] - cur_euler_t0[2]) / dt
 
-            if i == cutoff-1:
-                moving_average_thx = [cur_euler_t1[0][0]]*filter_horizon_mocap
-                moving_average_thy = [cur_euler_t1[1][0]]*filter_horizon_mocap
-                moving_average_thz = [cur_euler_t1[2][0]]*filter_horizon_mocap
-
-                moving_average_dx = [cur_vel_x] * filter_horizon_mocap
-                moving_average_dy = [cur_vel_y] * filter_horizon_mocap
-                moving_average_dz = [cur_vel_z] * filter_horizon_mocap
-                moving_average_dthx = [cur_dthx] * filter_horizon_mocap
-                moving_average_dthy = [cur_dthy] * filter_horizon_mocap
-                moving_average_dthz = [cur_dthz] * filter_horizon_mocap
-
-            moving_average_dx.append(cur_vel_x)
-            moving_average_dy.append(cur_vel_y)
-            moving_average_dz.append(cur_vel_z)
-            moving_average_dthx.append(cur_dthx)
-            moving_average_dthy.append(cur_dthy)
-            moving_average_dthz.append(cur_dthz)
-            moving_average_thx.append(cur_euler_t1[0][0])
-            moving_average_thy.append(cur_euler_t1[1][0])
-            moving_average_thz.append(cur_euler_t1[2][0])
-
-            del moving_average_dx[0]
-            del moving_average_dy[0]
-            del moving_average_dz[0]
-            del moving_average_dthx[0]
-            del moving_average_dthy[0]
-            del moving_average_dthz[0]
-            del moving_average_thx[0]
-            del moving_average_thy[0]
-            del moving_average_thz[0]
-
-            cur_vel_x = sum(moving_average_dx) / len(moving_average_dx)
-            cur_vel_y = sum(moving_average_dy) / len(moving_average_dy)
-            cur_vel_z = sum(moving_average_dz) / len(moving_average_dz)
-            cur_dthx = sum(moving_average_dthx) / len(moving_average_dthx)
-            cur_dthy = sum(moving_average_dthy) / len(moving_average_dthy)
-            cur_dthz = sum(moving_average_dthz) / len(moving_average_dthz)
-            cur_euler_t1[0][0] = sum(moving_average_thx) / len(moving_average_thx)
-            cur_euler_t1[1][0] = sum(moving_average_thy) / len(moving_average_thy)
-            cur_euler_t1[2][0] = sum(moving_average_thz) / len(moving_average_thz)
 
             rx_mocap_plot.append(cur_pos_t1[0])
             ry_mocap_plot.append(cur_pos_t1[1])
@@ -291,63 +247,22 @@ for file_name in file_list:
             cur_ddthy = (cur_dth_t1[1] - cur_dth_t0[1]) / dt
             cur_ddthz = (cur_dth_t1[2] - cur_dth_t0[2]) / dt
 
-            if i == cutoff-1:
-                moving_average_thx = [data_t265[i,0]] * filter_horizon_t265
-                moving_average_thy = [data_t265[i,1]] * filter_horizon_t265
-                moving_average_thz = [data_t265[i,2]] * filter_horizon_t265
-                moving_average_dx = [data_t265[i,9]] * filter_horizon_t265
-                moving_average_dy = [data_t265[i,10]] * filter_horizon_t265
-                moving_average_dz = [data_t265[i,11]] * filter_horizon_t265
-                moving_average_dthx = [data_t265[i,6]] * filter_horizon_t265
-                moving_average_dthy = [data_t265[i,7]] * filter_horizon_t265
-                moving_average_dthz = [data_t265[i,8]] * filter_horizon_t265
-
-            moving_average_thx.append(data_t265[i,0])
-            moving_average_thy.append(data_t265[i,1])
-            moving_average_thz.append(data_t265[i,2])
-            moving_average_dx.append(data_t265[i,9])
-            moving_average_dy.append(data_t265[i,10])
-            moving_average_dz.append(data_t265[i,11])
-            moving_average_dthx.append(data_t265[i,6])
-            moving_average_dthy.append(data_t265[i,7])
-            moving_average_dthz.append(data_t265[i,8])
-
-            del moving_average_thx[0]
-            del moving_average_thy[0]
-            del moving_average_thz[0]
-            del moving_average_dx[0]
-            del moving_average_dy[0]
-            del moving_average_dz[0]
-            del moving_average_dthx[0]
-            del moving_average_dthy[0]
-            del moving_average_dthz[0]
-
-            cur_thx = sum(moving_average_thx) / len(moving_average_thx)
-            cur_thy = sum(moving_average_thy) / len(moving_average_thy)
-            cur_thz = sum(moving_average_thz) / len(moving_average_thz)
-            cur_vel_x = sum(moving_average_dx) / len(moving_average_dx)
-            cur_vel_y = sum(moving_average_dy) / len(moving_average_dy)
-            cur_vel_z = sum(moving_average_dz) / len(moving_average_dz)
-            cur_dthx = sum(moving_average_dthx) / len(moving_average_dthx)
-            cur_dthy = sum(moving_average_dthy) / len(moving_average_dthy)
-            cur_dthz = sum(moving_average_dthz) / len(moving_average_dthz)
-
-            thx_t265.append(cur_thx)
-            thy_t265.append(cur_thy)
-            thz_t265.append(cur_thz)
+            thx_t265.append(data_t265[i,0])
+            thy_t265.append(data_t265[i,1])
+            thz_t265.append(data_t265[i,2])
             rx_t265.append(data_t265[i,3])
             ry_t265.append(data_t265[i,4])
             rz_t265.append(data_t265[i,5])
-            dthx_t265.append(cur_dthx)
-            dthy_t265.append(cur_dthy)
-            dthz_t265.append(cur_dthz)
-            drx_t265.append(cur_vel_x)
-            dry_t265.append(cur_vel_y)
-            drz_t265.append(cur_vel_z)
-            t265_list.append(np.array([cur_thx,cur_thy,cur_thz,
+            dthx_t265.append(data_t265[i,6])
+            dthy_t265.append(data_t265[i,7])
+            dthz_t265.append(data_t265[i,8])
+            drx_t265.append(data_t265[i,9])
+            dry_t265.append(data_t265[i,10])
+            drz_t265.append(data_t265[i,11])
+            t265_list.append(np.array([data_t265[i,0],data_t265[i,1],data_t265[i,2],
                                        data_t265[i,3],data_t265[i,4],data_t265[i,5],
-                                       cur_dthx,cur_dthy,cur_dthz,
-                                       cur_vel_x,cur_vel_y,cur_vel_z]).reshape(12,1))
+                                       data_t265[i,6],data_t265[i,7],data_t265[i,8],
+                                       data_t265[i,9],data_t265[i,10],data_t265[i,11]]).reshape(12,1))
 
             time_list.append(data_time[0,i])
             # thx, thy, thz, dthx, dthy, dthz, ddthx, ddthy, ddthz, ddx, ddy, ddz
@@ -429,7 +344,7 @@ for file_name in file_list:
                                     data_p_ref[i, 2, 0],data_p_ref[i, 2, 1],data_p_ref[i, 2, 2],
                                     data_p_ref[i, 3, 0],data_p_ref[i, 3, 1],data_p_ref[i, 3, 2]]).reshape(12,1))
 
-        plt.figure(7)
+        plt.figure(5)
         plt.plot(p1x_ref_plot)
         plt.plot(p1y_ref_plot)
         plt.plot(p1z_ref_plot)
@@ -438,35 +353,8 @@ for file_name in file_list:
         plt.plot(p1z_est_plot)
         plt.legend(['p1x ref','p1y ref','p1z ref','p1x est', 'p1y est', 'p1z est'])
 
-        f1x_plot = []
-        f1y_plot = []
-        f1z_plot = []
-        f2x_plot = []
-        f2y_plot = []
-        f2z_plot = []
+
         plt.figure(6)
-        for i in range(cutoff,end_cutoff-1):
-            f1x_plot.append(data_forces[i, 0])
-            f1y_plot.append(data_forces[i, 1])
-            f1z_plot.append(data_forces[i, 2])
-            f2x_plot.append(data_forces[i, 3])
-            f2y_plot.append(data_forces[i, 4])
-            f2z_plot.append(data_forces[i, 5])
-
-            f_list.append(np.array([data_forces[i, 0], data_forces[i, 1], data_forces[i, 2],
-                                    data_forces[i, 3], data_forces[i, 4], data_forces[i, 5],
-                                    data_forces[i, 6], data_forces[i, 7], data_forces[i, 8],
-                                    data_forces[i, 9], data_forces[i, 10], data_forces[i, 11]]).reshape(12, 1))
-
-        plt.plot(f1x_plot)
-        plt.plot(f1y_plot)
-        plt.plot(f1z_plot)
-        plt.plot(f2x_plot)
-        plt.plot(f2y_plot)
-        plt.plot(f2z_plot)
-        plt.legend(['f1x', 'f1y', 'f1z', 'f2x', 'f2y', 'f2z'])
-
-        plt.figure(8)
         rx_ref = []
         ry_ref = []
         rz_ref = []
@@ -515,7 +403,7 @@ for file_name in file_list:
             dp1_z_est.append(dp_cur[2])
             dp_list.append(dp_cur)
 
-        plt.figure(9)
+        plt.figure(7)
         plt.plot(dp1_x_est)
         plt.plot(dp1_y_est)
         plt.plot(dp1_z_est)
@@ -552,26 +440,10 @@ for file_name in file_list:
             plt.show()
 
         # save trajectory into pkl file
-        data_collection.update({traj_num:{'p_list_est': p_list_est, 'p_list_ref': p_list_ref, 'dp_list': dp_list, 'imu_list': imu_list, 'f_list': f_list,
+        data_collection.update({traj_num:{'p_list_est': p_list_est, 'p_list_ref': p_list_ref, 'dp_list': dp_list, 'imu_list': imu_list,
                                    'contact_list': contact_list, 't265_list': t265_list, 'mocap_list': mocap_list, 'ref_list': ref_list, 'time_list': time_list}})
 
         with open(dir_path+'/OptiState/data_collection/trajectories/saved_trajectories.pkl', 'wb') as f:
             pickle.dump(data_collection, f)
 
         traj_num += 1
-
-
-
-
-        #if traj_num == 3:
-        #    break
-
-#depth_image_1 = data_depth[0]
-#window_name = f'RealSense {0}'
-#cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
-#cv2.imshow(window_name, depth_image_1)
-#cv2.waitKey(10000)
-
-# Save the depth_image_1
-#file_name = 'depth_image_1.png'
-#cv2.imwrite(file_name, depth_image_1)

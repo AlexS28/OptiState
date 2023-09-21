@@ -19,7 +19,7 @@ from scipy import io
 load_Q_R = True
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 traj_num = 0
-filter_horizon = INITIAL_PARAMS.FILTER_HORIZON_KALMAN
+
 # ANSI escape code for orange text
 orange_color_code = '\033[93m'
 reset_color_code = '\033[0m'
@@ -36,26 +36,20 @@ if not load_Q_R:
         p_list_ref = cur_traj['p_list_ref']
         dp_list = cur_traj['dp_list']
         imu_list = cur_traj['imu_list']
-        f_list = cur_traj['f_list']
         contact_list = cur_traj['contact_list']
         t265_list = cur_traj['t265_list']
         mocap_list = cur_traj['mocap_list']
         mocap_list_2 = cur_traj['mocap_list']
         time_list = cur_traj['time_list']
         traj_length = len(p_list_ref)
-
         KF = Kalman_Filter()
         x_start = mocap_list[0]
         KF.x[:] = x_start
-
-
         model_data = []
         ground_truth_data = []
         measurement_data = []
-
         time = []
         time.append(0)
-
         for i in range(traj_length-1):
             # ground truth data from mocap
             ground_truth = mocap_list[i]
@@ -76,9 +70,6 @@ if not load_Q_R:
             imu = imu_list[i+1][0:6]
             odom = KF.get_odom(p_cur,dp_cur,contact_ref,imu)
             KF.set_measurements(imu, odom)
-
-
-
             ground_truth_data.append(ground_truth_t1)
             measurement_data.append(KF.z)
             model_data.append(KF.x_model)
@@ -134,7 +125,6 @@ for k in range(len(data_collection)):
     p_list_ref = cur_traj['p_list_ref']
     dp_list = cur_traj['dp_list']
     imu_list = cur_traj['imu_list']
-    f_list = cur_traj['f_list']
     contact_list = cur_traj['contact_list']
     t265_list = cur_traj['t265_list']
     mocap_list = cur_traj['mocap_list']
@@ -205,57 +195,12 @@ for k in range(len(data_collection)):
         dp = dp_list[i].reshape(12,1)
         imu = imu_list[i][0:6].reshape(6,1)
         contact_ref = contact_list[i].reshape(4,1)
-        #x_ref = mocap_list[i].reshape(12, 1) # TODO: CHANGE BACK IF IT DOES NOT WORK
         x_ref = ref_list[i].reshape(12,1)
-
         x = KF2.estimate_state_mpc(imu,p,dp,x_ref,contact_ref)
         p_trace.append(KF2.P_trace)
         K_gain.append(KF2.K_gain)
         if i != traj_length - 1:
             time.append(time[-1] + time_list[i + 1] - time_list[i])
-
-        if i == 0:
-            moving_average_dthx = [x[3][0]] * filter_horizon
-            moving_average_dthy = [x[4][0]] * filter_horizon
-            moving_average_dthz = [x[5][0]] * filter_horizon
-
-            #moving_average_dx = [x[9][0]] * filter_horizon
-            #moving_average_dy = [x[10][0]] * filter_horizon
-            #moving_average_dz = [x[11][0]] * filter_horizon
-
-        #moving_average_dx.append(x[9])
-        #moving_average_dy.append(x[10])
-        #moving_average_dz.append(x[11])
-
-        moving_average_dthx.append(x[3])
-        moving_average_dthy.append(x[4])
-        moving_average_dthz.append(x[5])
-
-        #del moving_average_dx[0]
-        #del moving_average_dy[0]
-        #del moving_average_dz[0]
-        del moving_average_dthx[0]
-        del moving_average_dthy[0]
-        del moving_average_dthz[0]
-
-        x[3] = sum(moving_average_dthx) / len(moving_average_dthx)
-        x[4] = sum(moving_average_dthy) / len(moving_average_dthy)
-        x[5] = sum(moving_average_dthz) / len(moving_average_dthz)
-
-        #x[9] = sum(moving_average_dx)/len(moving_average_dx)
-        #x[10] = sum(moving_average_dy)/len(moving_average_dy)
-        #x[11] = sum(moving_average_dz)/len(moving_average_dz)
-
-        KF2.x[3] = x[3]
-        KF2.x[4] = x[4]
-        KF2.x[5] = x[5]
-
-        #KF2.x[6] = x[6]
-        #KF2.x[7] = x[7]
-        #KF2.x[8] = x[8]
-        #KF2.x[9] = x[9]
-        #KF2.x[10] = x[10]
-        #KF2.x[11] = x[11]
 
         # ground truth data from mocap
         ground_truth = mocap_list[i]
@@ -306,23 +251,10 @@ for k in range(len(data_collection)):
                             p[10, 0], p[11, 0],
                             dp[0, 0], dp[1, 0], dp[2, 0], dp[3, 0], dp[4, 0], dp[5, 0], dp[6, 0], dp[7, 0], dp[8, 0],
                             dp[9, 0], dp[10, 0], dp[11, 0],
-                            imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
-                            contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
-        """
-        state_INPUT.append(
-            [imu_list[i][6][0], imu_list[i][7][0], imu_list[i][8][0], imu_list[i][9][0],
-             imu_list[i][10][0], imu_list[i][11][0],
-             p[0, 0], p[1, 0], p[2, 0], p[3, 0], p[4, 0], p[5, 0], p[6, 0], p[7, 0], p[8, 0], p[9, 0],
-             p[10, 0], p[11, 0],
-             dp[0, 0], dp[1, 0], dp[2, 0], dp[3, 0], dp[4, 0], dp[5, 0], dp[6, 0], dp[7, 0], dp[8, 0],
-             dp[9, 0], dp[10, 0], dp[11, 0],
-             imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0],
-             contact_ref[0, 0], contact_ref[1, 0], contact_ref[2, 0], contact_ref[3, 0]])
-        """
+                            imu[0, 0], imu[1, 0], imu[2, 0], imu[3, 0], imu[4, 0], imu[5, 0]])
 
         state_MOCAP.append([ground_truth[0][0],ground_truth[1][0],ground_truth[2][0],ground_truth[3][0],ground_truth[4][0],ground_truth[5][0],ground_truth[6][0],ground_truth[7][0],ground_truth[8][0],ground_truth[9][0],ground_truth[10][0],ground_truth[11][0]])
         state_T265.append([t265[0][0],t265[1][0],t265[2][0],t265[3][0],t265[4][0],t265[5][0],t265[6][0],t265[7][0],t265[8][0],t265[9][0],t265[10][0],t265[11][0]])
-
 
     plt.figure(1)
     plt.plot(time,dthx_est)
@@ -362,27 +294,27 @@ for k in range(len(data_collection)):
     plt.plot(time,drx_est)
     plt.plot(time,drx_mocap)
     plt.plot(time,drx_t265)
-    #plt.plot(time,dry_est)
-    #plt.plot(time,dry_mocap)
-    #plt.plot(time,dry_t265)
-    #plt.plot(time,drz_est)
-    #plt.plot(time,drz_mocap)
-    #plt.plot(time,drz_t265)
+    plt.plot(time,dry_est)
+    plt.plot(time,dry_mocap)
+    plt.plot(time,dry_t265)
+    plt.plot(time,drz_est)
+    plt.plot(time,drz_mocap)
+    plt.plot(time,drz_t265)
     plt.legend(['est dx','vicon dx','t265 dx','est dy', 'vicon dy', 't265 dy', 'est dz', 'vicon dz', 't265 dz',])
     plt.title('velocity')
 
 
     plt.figure(6)
-    #plt.plot(time, thx_est)
-    #plt.plot(time, thx_mocap)
-    #plt.plot(time, thx_t265)
-    #plt.plot(time, thy_est)
-    #plt.plot(time, thy_mocap)
-    #plt.plot(time, thy_t265)
     plt.plot(time, thx_est)
     plt.plot(time, thx_mocap)
     plt.plot(time, thx_t265)
-    #plt.legend(['est thx', 'vicon thx', 't265 thx', 'est thy', 'vicon thy', 't265 thy', 'est thz', 'vicon thz', 't265 thz', ])
+    plt.plot(time, thy_est)
+    plt.plot(time, thy_mocap)
+    plt.plot(time, thy_t265)
+    plt.plot(time, thx_est)
+    plt.plot(time, thx_mocap)
+    plt.plot(time, thx_t265)
+    plt.legend(['est thx', 'vicon thx', 't265 thx', 'est thy', 'vicon thy', 't265 thy', 'est thz', 'vicon thz', 't265 thz', ])
     plt.legend(['est thz', 'vicon thz', 't265 thz', ])
     plt.title('velocity')
 

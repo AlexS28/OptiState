@@ -8,6 +8,12 @@ from gru_model import RNN
 import os
 from torchvision import transforms
 from PIL import Image
+import sys
+
+import os
+current_directory = os.getcwd()
+sys.path.append(current_directory+'/transformer')
+sys.path.append(current_directory+'/')
 from transformer.transformer_model import Transformer_Autoencoder
 import shutil
 from scipy import io
@@ -21,14 +27,10 @@ num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
 training_percentage = 0.80
 # Hyper-parameters for state estimate
-num_outputs = 12+12
-if INITIAL_PARAMS.USE_VISION:
-    input_size = 64+128
-else:
-    input_size = 64
-
-sequence_length = 20
-hidden_size = 128+64
+num_outputs = 24
+input_size = 60+128
+sequence_length = 10
+hidden_size = 128
 num_layers = 4
 num_epochs = 1000
 batch_size = 64
@@ -92,18 +94,15 @@ for i in range(len(dataset_train_number)):
     cur_dataset = dataset_train_number[i]
     state_KF_init.extend(data_collection[cur_dataset]['state_INPUT'])
     state_VICON_init.extend(data_collection[cur_dataset]['state_MOCAP'])
-
-
-    if INITIAL_PARAMS.USE_VISION:
-        cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
-        image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
-        # Rename and copy images to the training folder
-        for index, image_file in enumerate(image_files):
-            new_filename = f"image_{cur_dataset}_{image_iterate}.png"
-            source_path = os.path.join(cur_image_directory, image_file)
-            destination_path = os.path.join(images_folder_train, new_filename)
-            shutil.copyfile(source_path, destination_path)
-            image_iterate+=1
+    cur_image_directory = dir_path + f'/OptiState/data_collection/trajectories/saved_images/saved_images_traj_{cur_dataset}'
+    image_files = [file for file in os.listdir(cur_image_directory) if file.lower().endswith('.png')]
+    # Rename and copy images to the training folder
+    for index, image_file in enumerate(image_files):
+        new_filename = f"image_{cur_dataset}_{image_iterate}.png"
+        source_path = os.path.join(cur_image_directory, image_file)
+        destination_path = os.path.join(images_folder_train, new_filename)
+        shutil.copyfile(source_path, destination_path)
+        image_iterate+=1
 
 
 # Convert your list of lists to a numpy array for easier processing
@@ -149,39 +148,39 @@ def numerical_sort(value):
     numbers = re.findall(r'\d+', value)
     return int(numbers[0]) if numbers else -1
 
-if INITIAL_PARAMS.USE_VISION:
-    load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
-    model = Transformer_Autoencoder()
-    model.load_state_dict(torch.load(load_model_name))
-    model.eval()
 
-    # load the autoencoder and output encoder values
-    encoder_output = []
-    cur_image_iterate = 1
-    for filename in sorted(os.listdir(images_folder_train), key=numerical_sort):
-        if filename.endswith(".png"):
-            image_path = os.path.join(images_folder_train, filename)
-            with Image.open(image_path) as img:
-                img = img.convert('RGB')
-                img = transform(img).unsqueeze(0)
-                with torch.no_grad():
-                    encoded = model.forward_encoder(img)
-                    encoded_1d = encoded.view(-1)
-                    encoded_1d_list = encoded_1d.numpy().tolist()
-                    encoder_output.append(encoded_1d_list)
-                    print(f'Calculating encoder values on image number: {cur_image_iterate}/{image_iterate}')
-                    cur_image_iterate += 1
+load_model_name = dir_path  + "/OptiState/transformer/trans_encoder_model"
+model = Transformer_Autoencoder()
+model.load_state_dict(torch.load(load_model_name))
+model.eval()
 
-    # save encoder output as pickle file so we do not need to the above operation every time
-    file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
-    # Serialize and save the data to the file
-    with open(file_encoder_path, 'wb') as file:
-        pickle.dump(encoder_output, file)
-    print("Encoder output saved to", file_encoder_path)
+# load the autoencoder and output encoder values
+encoder_output = []
+cur_image_iterate = 1
+for filename in sorted(os.listdir(images_folder_train), key=numerical_sort):
+    if filename.endswith(".png"):
+        image_path = os.path.join(images_folder_train, filename)
+        with Image.open(image_path) as img:
+            img = img.convert('RGB')
+            img = transform(img).unsqueeze(0)
+            with torch.no_grad():
+                encoded = model.forward_encoder(img)
+                encoded_1d = encoded.view(-1)
+                encoded_1d_list = encoded_1d.numpy().tolist()
+                encoder_output.append(encoded_1d_list)
+                print(f'Calculating encoder values on image number: {cur_image_iterate}/{image_iterate}')
+                cur_image_iterate += 1
 
-    # add the encoder output to the Kalman filter states for input to the GRU
-    for i in range(len(state_KF_init)):
-        state_KF_init[i].extend(encoder_output[i])
+# save encoder output as pickle file so we do not need to the above operation every time
+file_encoder_path = dir_path + "/OptiState/data_collection/trajectories/encoder_output_training.pkl"
+# Serialize and save the data to the file
+with open(file_encoder_path, 'wb') as file:
+    pickle.dump(encoder_output, file)
+print("Encoder output saved to", file_encoder_path)
+
+# add the encoder output to the Kalman filter states for input to the GRU
+for i in range(len(state_KF_init)):
+    state_KF_init[i].extend(encoder_output[i])
 
 # reshape data to have sequences of length sequence_length
 state_KF = []
@@ -214,31 +213,7 @@ for i in range(num_models):
     np.random.seed(seed)
     random.seed(seed)
 
-    # TODO: BELOW IS RANDOM SPLIT
     train_dataset, test_dataset = torch.utils.data.random_split(dataset, [num_train, num_test])
-    #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-
-    # TODO: BELOW IS NO RANDOM SPLIT
-    # specify the training and testing percentages
-    #testing_percentage = 1 - training_percentage
-
-    # calculate the number of samples for training and testing
-    #num_samples = len(dataset)
-    #num_train = int(training_percentage * num_samples)
-    #num_test = num_samples - num_train
-
-    # create indices for training and testing samples
-    #train_indices = list(range(num_train))
-    #test_indices = list(range(num_train, num_samples))
-
-    # create Subset objects using the indices
-    #train_dataset = torch.utils.data.Subset(dataset, train_indices)
-    #test_dataset = torch.utils.data.Subset(dataset, test_indices)
-
-    # create DataLoader objects for training and testing
-    #train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    #test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-
     model = RNN(input_size, hidden_size, num_layers, num_outputs, device).to(device)
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -275,8 +250,6 @@ for i in range(num_models):
 
             loss_list_training.append(loss.cpu().detach().numpy())
 
-            # Print progress every 1000 iterations
-            #if (i + 1) % 10 == 0:
         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.16f}')
         loss_list_training_mean.append(np.mean(loss_list_training))
         # Update the plot with the new data
@@ -288,19 +261,11 @@ for i in range(num_models):
         plt.pause(0.001)  # Adjust the pause duration as needed
 
         if epoch % 100 == 0:
-            if INITIAL_PARAMS.USE_VISION:
-                # save your model
-                print("SAVING MODEL")
-                torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}_vision.pth')
-            else:
-                torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}.pth')
+            print("SAVING MODEL")
+            torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}_vision.pth')
 
-    if INITIAL_PARAMS.USE_VISION:
-        # save your model
         torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}_vision.pth')
-    else:
-        torch.save(model.state_dict(), dir_path + f'/OptiState/gru/gru_models/model{cur_model}.pth')
-    #cur_model += 1
+
 
 
 plt.figure(1)

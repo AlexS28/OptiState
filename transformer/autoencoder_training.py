@@ -1,17 +1,16 @@
-#To train transformer:
-#python autoencoder_training.py -use_model transformer -save_model_name trans_encoder_model -training_log_save transformer_log
+#To train transformer from terminal:
+#python3 transformer/autoencoder_training.py -save_model_name trans_encoder_model -training_log_save transformer_log
 import argparse
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Autoencoder training', add_help=False)
     parser.add_argument('-lr', default=4e-4, type=float, help='initial learning rate')
-    parser.add_argument('-weight_decay', default=0.0, type=float, help='weight decay for training')
+    parser.add_argument('-weight_decay', default=0.001, type=float, help='weight decay for training')
     parser.add_argument('-batch_size', default=64, type=int, help='batch size for training')
-    parser.add_argument('-num_epochs', default=2000, type=int, help='number of epochs for training')
+    parser.add_argument('-num_epochs', default=100, type=int, help='number of epochs for training')
     parser.add_argument('-load_model_name', default=None , help='name of the model to load before training')
     parser.add_argument('-save_model_name', default=None , help='name of the model to save after training')
     parser.add_argument('-training_log_save', default='transformer_log', help='save name for loss log of training')
-    parser.add_argument('-use_model', default=None, help='the model to use (CNN or transformer)')
     return parser
 
 args = get_args_parser()
@@ -23,7 +22,6 @@ num_epochs = args.num_epochs
 load_model_name = args.load_model_name
 save_model_name = args.save_model_name
 training_log_save = args.training_log_save
-use_model = args.use_model
 
 import os
 import sys
@@ -38,20 +36,19 @@ mpl.use('tkagg')
 import matplotlib.pyplot as plt
 from PIL import Image
 from transformer_model import Transformer_Autoencoder
-from autoencoder_model import Autoencoder
 import timm.optim.optim_factory as optim_factory
 
 # Define the transformation to apply to the image
 transform = transforms.Compose([
     transforms.Resize((224, 224)),  # Resize the image to 64x64
     transforms.Grayscale(num_output_channels=1),  # Convert to greyscale
-    #transforms.RandomRotation(degrees=(-10, 10)), # data augmentation
-    #transforms.RandomVerticalFlip(p=0.5),  #  # Flip horizontally with a 50% probability
-    #transforms.RandomHorizontalFlip(p=0.5),  # Flip horizontally with a 50% probability
-    #transforms.RandomPerspective(p=0.5),
-    #transforms.RandomApply([
-    #        transforms.RandomResizedCrop(size=(224, 224) , scale=(0.8, 1.0), ratio=(0.9, 1.1))
-    #    ], p=0.3),
+    transforms.RandomRotation(degrees=(-10, 10)), # data augmentation
+    transforms.RandomVerticalFlip(p=0.5),  #  # Flip horizontally with a 50% probability
+    transforms.RandomHorizontalFlip(p=0.5),  # Flip horizontally with a 50% probability
+    transforms.RandomPerspective(p=0.5),
+    transforms.RandomApply([
+            transforms.RandomResizedCrop(size=(224, 224) , scale=(0.8, 1.0), ratio=(0.9, 1.1))
+        ], p=0.3),
     transforms.ToTensor(),  # Convert the image to a PyTorch tensor
 ])
 
@@ -75,11 +72,7 @@ for i in range(1):
 
 training_list = image_list[:len(image_list) - 50]
 val_list = image_list[len(image_list) - 50:]
-
-if use_model == 'transformer':
-    model = Transformer_Autoencoder()
-else:
-    model = Autoencoder()
+model = Transformer_Autoencoder()
 
 if not load_model_name is None:
     model.load_state_dict(torch.load(load_model_name))
@@ -87,12 +80,8 @@ if not load_model_name is None:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 model.to(device)
-
-if use_model == 'transformer':
-    param_groups = optim_factory.add_weight_decay(model, weight_decay)
-    optimizer = torch.optim.AdamW(param_groups, lr=lr, betas=(0.9, 0.95))
-else:
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+param_groups = optim_factory.add_weight_decay(model, weight_decay)
+optimizer = torch.optim.AdamW(param_groups, lr=lr, betas=(0.9, 0.95))
 
 # Initialize lists to store the loss values
 train_losses = []
@@ -126,19 +115,8 @@ for epoch in range(num_epochs):
     train_loss = train_loss / (len(training_list) / batch_size)
     train_losses.append(train_loss)
 
-    # validation
-    #with torch.no_grad():
-    #    val_loss = 0.0
-    #    for k in range(len(val_list)):
-    #        inp_img = val_list[k].to(device)
-    #        loss, pred = model.forward(inp_img)
-    #        val_loss += loss.item()
-    #    val_loss = val_loss / len(val_list)
-    #    val_losses.append(val_loss)
-
     # Update the plot
     line1.set_data(range(len(train_losses)), train_losses)
-    #line2.set_data(range(len(val_losses)), val_losses)
     ax.relim()
     ax.autoscale_view()
     fig.canvas.draw()
