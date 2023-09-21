@@ -13,7 +13,7 @@ import shutil
 from scipy import io
 from settings import INITIAL_PARAMS
 # specify the dataset number to test on
-dataset_test_number = [1,7,12,19] # flat: 1, slippery: 7,incline: 12, rough terrain: 19
+dataset_test_number = [1,2] # flat: 1, slippery: 7,incline: 12, rough terrain: 19
 
 # Hyper-parameters (same values as GRU 1)
 num_outputs = 24

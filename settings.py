@@ -15,13 +15,13 @@ class INITIAL_PARAMS:
     FILTER_HORIZON_T265 = 1
     FILTER_HORIZON_MOCAP = 1
     # Horizon for moving average filter applied to the Kalman filter velocity components
-    FILTER_HORIZON_KALMAN = 1
+    FILTER_HORIZON_KALMAN = 2
     # Define the start and end of cutoff for all collected datasets
-    DATA_CUTOFF_START = 550+200
-    DATA_CUTOFF_END = 5000
+    DATA_CUTOFF_START = 445
+    DATA_CUTOFF_END = 7400
     DATA_CUTOFF_END_2 = 1500
     # Define whether we want to visualize plots for data conversion scripts
-    VISUALIZE_DATA_CONVERSION = False
+    VISUALIZE_DATA_CONVERSION = True
     # Define the rotational inertia matrix of the robot in the CoM body frame (xx, yy, zz)
     Px = 55303643.08 / (10 ** 9)
     Py = 60119440.34 / (10 ** 9)

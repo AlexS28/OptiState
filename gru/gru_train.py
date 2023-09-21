@@ -14,12 +14,12 @@ from scipy import io
 from settings import INITIAL_PARAMS
 import copy
 # specify the dataset number to train on
-dataset_train_number = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
-total_number_datasets = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
+dataset_train_number = [1,2]
+total_number_datasets = [1,2]
 # specify number of models to train
 num_models = 1
 # we train both the model for state output, and afterwards, model for the covariances
-training_percentage = 0.95
+training_percentage = 0.80
 # Hyper-parameters for state estimate
 num_outputs = 12+12
 if INITIAL_PARAMS.USE_VISION:
@@ -30,7 +30,7 @@ else:
 sequence_length = 20
 hidden_size = 128+64
 num_layers = 4
-num_epochs = 500
+num_epochs = 1000
 batch_size = 64
 learning_rate = 0.0001
 

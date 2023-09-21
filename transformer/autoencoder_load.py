@@ -6,6 +6,7 @@
 
 
 import argparse
+import time
 
 
 def get_args_parser():
@@ -44,7 +45,7 @@ transform = transforms.Compose([
 # Open the saved image using PIL
 image_list = []
 dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_traj_18"
+folder_path = dir_path + "/OptiState/data_collection/trajectories/saved_images/saved_images_combined"
 
 import re
 
@@ -73,27 +74,50 @@ else:
 model.load_state_dict(torch.load(load_model_name))
 model.eval()
 
-input_img = image_list[test_case]
+#input_img = image_list[test_case]
 
 
-with torch.no_grad():
-    loss, pred = model.forward(input_img)
+#with torch.no_grad():
+    #loss, pred = model.forward(input_img)
 
-if use_model == 'transformer':
-    output_img = model.unpatchify(pred)
-else:
-    output_img = pred
+#if use_model == 'transformer':
+#    output_img = model.unpatchify(pred)
+#else:
+#    output_img = pred
+
+import cv2
+import numpy as np
+for i in range(len(image_list)):
+    input_img = image_list[i]
+    with torch.no_grad():
+        _, pred = model.forward(input_img)
+        if use_model=='transformer':
+            output_img = model.unpatchify(pred)
+        else:
+            output_img = pred
+
+        # Convert the input and output images to numpy arrays
+        input_img = input_img.squeeze().detach().cpu().numpy()
+        output_img = output_img.squeeze().detach().cpu().numpy()
+
+        # Concatenate the input and output images horizontally
+        side_by_side = np.hstack((input_img, output_img))
+
+        # Create a named window
+        cv2.namedWindow('Input and Output Images', cv2.WINDOW_AUTOSIZE)
+
+        # Show the concatenated image in the window
+        cv2.imshow('Input and Output Images', side_by_side)
+        if i == 1:
+            time.sleep(15)
+        # Wait for a key press and close the window if 'q' is pressed
+        key = cv2.waitKey(1)
+        if key == ord('q'):
+            break
 
 
-# Generate and display the input and output images
-plt.subplot(1, 2, 1)
-plt.imshow(input_img.squeeze(), cmap='gray')
-plt.title('Input Image')
-plt.subplot(1, 2, 2)
-plt.imshow(output_img.squeeze().detach(), cmap='gray')
-plt.title('Output Image')
-plt.show()
 
+"""
 model.eval()
 # Pass the input image through the encoder to get the latent representation
 with torch.no_grad():
@@ -112,5 +136,5 @@ encoded_1d = encoded.view(-1)
 print("Encoded 1D tensor shape:", encoded_1d.shape)
 
 encoded_1d_np = encoded_1d.numpy()
-
-print(encoded_1d_np)
+print(encoded_1d_np.shape)
+"""

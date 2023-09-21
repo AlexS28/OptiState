@@ -144,7 +144,7 @@ for k in range(len(data_collection)):
 
     traj_length = len(p_list_ref)
     KF2 = Kalman_Filter()
-    x_start = mocap_list[100]
+    x_start = mocap_list[0]
     KF2.x[:] = x_start
     KF2.Q = Q
     KF2.R = R
@@ -200,7 +200,7 @@ for k in range(len(data_collection)):
     K_gain = []
     time = []
     time.append(0)
-    for i in range(100,traj_length):
+    for i in range(0,traj_length):
         p = p_list_est[i].reshape(12,1)
         dp = dp_list[i].reshape(12,1)
         imu = imu_list[i][0:6].reshape(6,1)
@@ -214,7 +214,7 @@ for k in range(len(data_collection)):
         if i != traj_length - 1:
             time.append(time[-1] + time_list[i + 1] - time_list[i])
 
-        if i == 100:
+        if i == 0:
             moving_average_dthx = [x[3][0]] * filter_horizon
             moving_average_dthy = [x[4][0]] * filter_horizon
             moving_average_dthz = [x[5][0]] * filter_horizon

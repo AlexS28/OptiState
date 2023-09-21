@@ -42,11 +42,6 @@ for file_name in file_list:
     if file_name.endswith(".mat"):
         print(f"{orange_color_code}'NOW SAVING TRAJECTORY: {traj_num}'{reset_color_code}")
         file_path = os.path.join(folder_path, file_name)
-
-        if traj_num >= 11 and traj_num < 16:
-            end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END_2)
-        else:
-            end_cutoff = copy.deepcopy(INITIAL_PARAMS.DATA_CUTOFF_END)
         data = scipy.io.loadmat(file_path)
 
         # we first plot to double check

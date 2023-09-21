@@ -108,6 +108,7 @@ for epoch in range(num_epochs):
                     batch = torch.cat(batch, dim=0)
                     loss, pred = model.forward(batch)
                     train_loss += loss.item()
+                    print(loss.item())
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
@@ -120,6 +121,7 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
 
     train_loss = train_loss / len(os.listdir(folder_path))  # Average loss over all images
     train_losses.append(train_loss)
