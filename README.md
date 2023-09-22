@@ -25,7 +25,7 @@ To see plots during conversion process, go to settings.py file and set VISUALIZE
 After steps 7 and 8, we have a pickle file called rnn_data.pkl, which contains all the trajectories from the .mat files into a data format used for training. Additionally, we save raw depth images from the .mat files, into a folder called saved_images, which contain all the .png files that you can view.
 
 ## Training the Transformer (must complete steps 7-8 first)
-9. `python3 transformer/autoencoder_training.py -save_model_name trans_encoder_model -training_log_save transformer_log`
+9. `python3 transformer/autoencoder_training.py -save_model_name transformer/trans_encoder_model -training_log_save transformer_log`
 
 ## Evaluating the Transformer (Optional)
 To evaluate the transformer run the following command, you will see two images, the input image on the left side, and the reconstructed image from the transformer encoder/decoder on the right side. 
