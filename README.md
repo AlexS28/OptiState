@@ -34,7 +34,7 @@ To evaluate the transformer run the following command, you will see two images, 
 
 10. `python3 transformer/autoencoder_load.py -load_model_name trans_encoder_model`
 
-<img src="https://github.com/AlexS28/OptiState/ezgif.com-video-to-gif.gif" width="200">
+<img src="https://github.com/AlexS28/OptiState/blob/main/ezgif.com-video-to-gif.gif" width="200">
 
 ## Training the GRU (must complete steps 7 - 9 first)
 11. `python3 gru/gru_train.py`
