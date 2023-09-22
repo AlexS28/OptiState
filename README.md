@@ -4,6 +4,8 @@ with Transformer-based Vision and Kalman Filtering.
 
 Paper is currenty under review.
 
+![](flowchart.svg)
+
 System tested: Ubuntu 20.04, Python 3.8
 ## Runing our State Estimation example (from data collection to evaluation)
 ## Installation
