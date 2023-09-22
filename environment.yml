@@ -1,0 +1,29 @@
+name: OptiState
+channels:
+  - defaults
+  - powerai
+  - conda-forge
+dependencies:
+  - pip=23.0
+  - cython=0.29.14
+  - matplotlib=3.1.2
+  - python=3.8
+  - scipy=1.5.2
+  - transformations=2022.9.26
+  - libgcc-ng=12.2.0
+  - libstdcxx-ng=11.2.0
+  - pip:
+    - setuptools==65.5.0
+    - torch==1.13.1
+    - torchvision==0.14.1
+    - kiwisolver==1.2.0
+    - tensorflow==2.11.1
+    - tensorboard==2.11.2
+    - git+https://github.com/qaz1678249/scalar_kinematics.git
+    - numpy==1.24.2
+    - timm==0.3.2
+    - casadi==3.6.2
+    - control
+    - Pillow==9.5.0
+    - opencv-python==4.3.0.36
+    - cv-bridge==1.16.2

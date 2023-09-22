@@ -1,17 +1,16 @@
-#To train transformer:
-#python autoencoder_training.py -use_model transformer -save_model_name trans_encoder_model -training_log_save transformer_log
+#To train transformer from terminal:
+#python3 transformer/autoencoder_training.py -save_model_name trans_encoder_model -training_log_save transformer_log
 import argparse
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Autoencoder training', add_help=False)
     parser.add_argument('-lr', default=4e-4, type=float, help='initial learning rate')
-    parser.add_argument('-weight_decay', default=0.1, type=float, help='weight decay for training')
+    parser.add_argument('-weight_decay', default=0.001, type=float, help='weight decay for training')
     parser.add_argument('-batch_size', default=64, type=int, help='batch size for training')
-    parser.add_argument('-num_epochs', default=1000, type=int, help='number of epochs for training')
+    parser.add_argument('-num_epochs', default=100, type=int, help='number of epochs for training')
     parser.add_argument('-load_model_name', default=None , help='name of the model to load before training')
     parser.add_argument('-save_model_name', default=None , help='name of the model to save after training')
     parser.add_argument('-training_log_save', default='transformer_log', help='save name for loss log of training')
-    parser.add_argument('-use_model', default=None, help='the model to use (CNN or transformer)')
     return parser
 
 args = get_args_parser()
@@ -23,7 +22,6 @@ num_epochs = args.num_epochs
 load_model_name = args.load_model_name
 save_model_name = args.save_model_name
 training_log_save = args.training_log_save
-use_model = args.use_model
 
 import os
 import sys
@@ -74,8 +72,6 @@ for i in range(1):
 
 training_list = image_list[:len(image_list) - 50]
 val_list = image_list[len(image_list) - 50:]
-
-
 model = Transformer_Autoencoder()
 
 if not load_model_name is None:
@@ -84,10 +80,8 @@ if not load_model_name is None:
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 model.to(device)
-
 param_groups = optim_factory.add_weight_decay(model, weight_decay)
 optimizer = torch.optim.AdamW(param_groups, lr=lr, betas=(0.9, 0.95))
-
 
 # Initialize lists to store the loss values
 train_losses = []
@@ -121,26 +115,15 @@ for epoch in range(num_epochs):
     train_loss = train_loss / (len(training_list) / batch_size)
     train_losses.append(train_loss)
 
-    # validation
-    with torch.no_grad():
-        val_loss = 0.0
-        for k in range(len(val_list)):
-            inp_img = val_list[k].to(device)
-            loss, pred = model.forward(inp_img)
-            val_loss += loss.item()
-        val_loss = val_loss / len(val_list)
-        val_losses.append(val_loss)
-
     # Update the plot
     line1.set_data(range(len(train_losses)), train_losses)
-    line2.set_data(range(len(val_losses)), val_losses)
     ax.relim()
     ax.autoscale_view()
     fig.canvas.draw()
     fig.canvas.flush_events()
 
     if epoch % 1 == 0:
-        print(f'Epoch:{epoch + 1}/{num_epochs}, Loss:{train_loss:.6f}, Val loss:{val_loss:.6f}')
+        print(f'Epoch:{epoch + 1}/{num_epochs}, Loss:{train_loss:.6f}')
 
     if epoch % 100 == 0:
         torch.save(model.state_dict(), save_model_name)
@@ -148,7 +131,6 @@ for epoch in range(num_epochs):
 torch.save(model.state_dict(), save_model_name)
 import numpy as np
 np.savez(training_log_save, train=np.array(train_losses), val=np.array(val_losses))
-
 
 
 
