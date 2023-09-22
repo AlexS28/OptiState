@@ -18,7 +18,9 @@ System tested: Ubuntu 20.04, Python 3.8
 We provide two raw sample data in the form of .mat files, which can be downloaded here: https://drive.google.com/drive/folders/1K1ZFdDBoSRxEqZ_bG3Np4DfH5AKo-iU5?usp=drive_link. 
 Once downloaded, put the folders into the OptiState/trajectories folder)
 To see plots during conversion process, go to settings.py file and set VISUALIZE_DATA_CONVERSION=True. Make sure to press x on each plot window to continue the loop to process all the trajectories.
+
 7. From the OptiState directory run: `python3 data_collection/data_conversion_raw_to_Kalman.py`
+
 8. From the OptiState directory run: `python3 data_collection/data_conversion_Kalman_to_Training.py`
 After steps 7 and 8, we have a pickle file called rnn_data.pkl, which contains all the trajectories from the .mat files into a data format used for training. Additionally, we save raw depth images from the .mat files, into a folder called saved_images, which contain all the .png files that you can view.
 ## Training the Transformer (must complete steps 7-8 first)
