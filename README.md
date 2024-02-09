@@ -2,7 +2,10 @@
 State Estimation of Legged Robots using Gated Networks
 with Transformer-based Vision and Kalman Filtering.
 
-Paper is currenty under review.
+Accpeted to the International Conference on Robotics and Automation (ICRA 2024). 
+Authors: Alexander Schperberg, Yusuke Tanaka, Saviz Mowlavi, Feng Xu, Bharathan Balaji, and Dennis Hong
+
+Please cite the following paper: Schperberg, Alexander, Yusuke Tanaka, Saviz Mowlavi, Feng Xu, Bharathan Balaji, and Dennis Hong. "OptiState: State Estimation of Legged Robots using Gated Networks with Transformer-based Vision and Kalman Filtering." arXiv e-prints (2024): arXiv-2401.
 
 ![](flowchart.svg)
 
