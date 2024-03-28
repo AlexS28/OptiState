@@ -43,7 +43,7 @@ To evaluate the transformer run the following command, you will see two images, 
 11. `python3 gru/gru_train.py`
 
 ## Evaluating the GRU (Optional)
-12. `python3 gru/tru_test.py`
+12. `python3 gru/gru_test.py`
 
 
 
