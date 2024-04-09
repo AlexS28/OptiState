@@ -33,7 +33,7 @@ After steps 7 and 8, we have a pickle file called rnn_data.pkl, which contains a
 9. `python3 transformer/autoencoder_training.py -save_model_name transformer/trans_encoder_model -training_log_save transformer_log`
 
 ## Evaluating the Transformer (Optional)
-To evaluate the transformer run the following command, you will see two images, the input image on the left side, and the reconstructed image from the transformer encoder/decoder on the right side. 
+To evaluate the transformer run the following command, you will see two images, the input image on the left side, and the reconstructed image from the trained transformer encoder on the right side. 
 
 10. `python3 transformer/autoencoder_load.py -load_model_name trans_encoder_model`
 
